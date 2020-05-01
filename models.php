@@ -13,7 +13,7 @@ function init() {
   $this->addField('first_name');
   $this->addField('last_name');
   $this->addField('user_type');
-  $this->hasOne('Users_login_id', new Users_login);
+  $this->hasOne('users_login_id', new Users_login);
 
 }
 }
