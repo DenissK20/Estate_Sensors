@@ -13,7 +13,7 @@ $form->buttonSave->set('Sign in');
 $form->onSubmit(function($form) use ($users_login) {
   $users_login->tryLoadBy('login',$form->model['login']);
   If ($users_login['password'] == $form->model['password']) {
-    If ($users['user_type'] = 88) {
+    If ($users['user_type'] == 88) {
       return new \atk4\ui\jsExpression('document.location="admin.php"');
     } else {
       $_SESSION['users_login_id'] = $users_login->id;
