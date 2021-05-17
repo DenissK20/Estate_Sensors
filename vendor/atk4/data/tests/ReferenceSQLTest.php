@@ -12,7 +12,7 @@ use atk4\data\Persistence_SQL;
  * also that the original model can be re-loaded with a different
  * value without making any condition stick.
  */
-class ReferenceSQLTest extends SQLTestCase
+class ReferenceSQLTest extends \atk4\schema\PHPUnit_SchemaTestCase
 {
     public function testBasic()
     {
@@ -53,10 +53,12 @@ class ReferenceSQLTest extends SQLTestCase
         $this->assertEquals(null, $oo['amount']);
 
         $oo = $u->unload()->addCondition('id', '>', '1')->ref('Orders');
-        $this->assertEquals(
-            'select `id`,`amount`,`user_id` from `order` where `user_id` in (select `id` from `user` where `id` > :a)',
-            $oo->action('select')->render()
-        );
+        if ($this->driver == 'sqlite') {
+            $this->assertEquals(
+                'select "id","amount","user_id" from "order" where "user_id" in (select "id" from "user" where "id" > :a)',
+                $oo->action('select')->render()
+            );
+        }
     }
 
     /**
@@ -70,10 +72,12 @@ class ReferenceSQLTest extends SQLTestCase
 
         $u->hasMany('Orders', $o);
 
-        $this->assertEquals(
-            'select `id`,`amount`,`user_id` from `order` where `user_id` = `user`.`id`',
-            $u->refLink('Orders')->action('select')->render()
-        );
+        if ($this->driver == 'sqlite') {
+            $this->assertEquals(
+                'select "id","amount","user_id" from "order" where "user_id" = "user"."id"',
+                $u->refLink('Orders')->action('select')->render()
+            );
+        }
     }
 
     public function testBasic2()
@@ -113,10 +117,12 @@ class ReferenceSQLTest extends SQLTestCase
 
         $u->hasMany('cur', [$c, 'our_field' => 'currency_code', 'their_field' => 'code']);
 
-        $this->assertEquals(
-            'select `id`,`code`,`name` from `currency` where `code` = `user`.`currency_code`',
-            $u->refLink('cur')->action('select')->render()
-        );
+        if ($this->driver == 'sqlite') {
+            $this->assertEquals(
+                'select "id","code","name" from "currency" where "code" = "user"."currency_code"',
+                $u->refLink('cur')->action('select')->render()
+            );
+        }
     }
 
     /**
@@ -154,10 +160,12 @@ class ReferenceSQLTest extends SQLTestCase
         $o->addCondition('amount', '>', 6);
         $o->addCondition('amount', '<', 9);
 
-        $this->assertEquals(
-            'select `id`,`name` from `user` where `id` in (select `user_id` from `order` where `amount` > :a and `amount` < :b)',
-            $o->ref('user_id')->action('select')->render()
-        );
+        if ($this->driver == 'sqlite') {
+            $this->assertEquals(
+                'select "id","name" from "user" where "id" in (select "user_id" from "order" where "amount" > :a and "amount" < :b)',
+                $o->ref('user_id')->action('select')->render()
+            );
+        }
     }
 
     /**
@@ -264,10 +272,12 @@ class ReferenceSQLTest extends SQLTestCase
 
         $i->addExpression('total_net', $i->refLink('line')->action('fx', ['sum', 'total_net']));
 
-        $this->assertEquals(
-            'select `invoice`.`id`,`invoice`.`ref_no`,(select sum(`total_net`) from `invoice_line` where `invoice_id` = `invoice`.`id`) `total_net` from `invoice`',
-            $i->action('select')->render()
-        );
+        if ($this->driver == 'sqlite') {
+            $this->assertEquals(
+                'select "invoice"."id","invoice"."ref_no",(select sum("total_net") from "invoice_line" where "invoice_id" = "invoice"."id") "total_net" from "invoice"',
+                $i->action('select')->render()
+            );
+        }
     }
 
     public function testAggregateHasMany()
@@ -290,14 +300,25 @@ class ReferenceSQLTest extends SQLTestCase
 
         $db = new Persistence_SQL($this->db->connection);
         $i = (new Model($db, 'invoice'))->addFields(['ref_no']);
-        $l = (new Model($db, 'invoice_line'))->addFields(['invoice_id', 'total_net', 'total_vat', 'total_gross']);
+        $l = (new Model($db, 'invoice_line'))->addFields([
+            'invoice_id',
+            ['total_net', 'type'=>'money'],
+            ['total_vat', 'type'=>'money'],
+            ['total_gross', 'type'=>'money'],
+        ]);
         $i->hasMany('line', $l)
             ->addFields([
-                ['total_vat', 'aggregate' => 'sum'],
+                ['total_vat', 'aggregate' => 'sum', 'type'=>'money'],
                 ['total_net', 'aggregate' => 'sum'],
                 ['total_gross', 'aggregate' => 'sum'],
         ]);
         $i->load('1');
+
+        // type was set explicitly
+        $this->assertEquals('money', $i->getElement('total_vat')->type);
+
+        // type was not set and is not inherited
+        $this->assertEquals(null, $i->getElement('total_net')->type);
 
         $this->assertEquals(40, $i['total_net']);
         $this->assertEquals(9.2, $i['total_vat']);
@@ -312,6 +333,68 @@ class ReferenceSQLTest extends SQLTestCase
         $this->assertEquals($n = 43, $i['total_net']);
         $this->assertEquals($n * $vat, $i['total_vat']);
         $this->assertEquals($n * ($vat + 1), $i['total_gross']);
+
+        $i->ref('line')->import([
+                ['total_net' => null, 'total_vat' => null, 'total_gross' => 1],
+            ]);
+        $i->reload();
+
+        $this->assertEquals($n = 43, $i['total_net']);
+        $this->assertEquals($n * $vat, $i['total_vat']);
+        $this->assertEquals($n * ($vat + 1) + 1, $i['total_gross']);
+    }
+
+    public function testOtherAggregates()
+    {
+        $vat = 0.23;
+        $a = [
+            'list' => [
+                1 => ['id' => 1, 'name' => 'Meat'],
+                2 => ['id' => 2, 'name' => 'Veg'],
+                3 => ['id' => 3, 'name' => 'Fruit'],
+            ], 'item' => [
+                ['name' => 'Apple',  'code' => 'ABC', 'list_id'=>3],
+                ['name' => 'Banana', 'code' => 'DEF', 'list_id'=>3],
+                ['name' => 'Pork',   'code' => 'GHI', 'list_id'=>1],
+                ['name' => 'Chicken', 'code'=> null,  'list_id'=>1],
+                ['name' => 'Pear',   'code' => null,  'list_id'=>3],
+            ], ];
+
+        $this->setDB($a);
+
+        $db = new Persistence_SQL($this->db->connection);
+        $l = (new Model($db, 'list'))->addFields(['name']);
+        $i = (new Model($db, 'item'))->addFields(['list_id', 'name', 'code']);
+        $l->hasMany('Items', $i)
+            ->addFields([
+                ['items_name', 'aggregate' => 'count', 'field' => 'name'],
+                ['items_code', 'aggregate' => 'count', 'field' => 'code'], // counts only not-null values
+                ['items_star', 'aggregate' => 'count'], // no field set, counts all rows with count(*)
+                ['items_c',   'aggregate' => 'group_concat', 'field'=>'name'],
+                ['items_c-',  'aggregate' => $i->expr('group_concat([name], [])', ['-'])],
+                ['len',       'aggregate' => $i->expr('sum(length([name]))')],
+                ['len2',      'expr' => 'sum(length([name]))'],
+                ['chicken5',  'expr' => 'sum([])', 'args'=>['5']],
+        ]);
+        $l->load(1);
+
+        $this->assertEquals(2, $l['items_name']); // 2 not-null values
+        $this->assertEquals(1, $l['items_code']); // only 1 not-null value
+        $this->assertEquals(2, $l['items_star']); // 2 rows in total
+        $this->assertEquals('Pork,Chicken', $l['items_c']);
+        $this->assertEquals('Pork-Chicken', $l['items_c-']);
+        $this->assertEquals(strlen('Chicken') + strlen('Pork'), $l['len']);
+        $this->assertEquals(strlen('Chicken') + strlen('Pork'), $l['len2']);
+        $this->assertEquals(10, $l['chicken5']);
+
+        $l->load(2);
+        $this->assertEquals(0, $l['items_name']);
+        $this->assertEquals(0, $l['items_code']);
+        $this->assertEquals(0, $l['items_star']);
+        $this->assertEquals('', $l['items_c']);
+        $this->assertEquals(null, $l['len']);
+        $this->assertEquals(null, $l['len2']);
+        $this->assertEquals(null, $l['chicken5']);
     }
 
     public function testReferenceHook()
@@ -367,5 +450,41 @@ class ReferenceSQLTest extends SQLTestCase
         $user->hasMany('Orders', ['model' => ['atk4/data/Model', 'table' => 'order'], 'their_field' => 'id']);
         $o = $user->ref('Orders');
         $this->assertEquals('order', $o->table);
+    }
+
+    /**
+     * Few tests to test Reference_SQL_One addTitle() method.
+     */
+    public function testAddTitle()
+    {
+        $a = [
+            'user' => [
+                1 => ['id' => 1, 'name' => 'John'],
+            ], 'order' => [
+                ['amount' => '20', 'user_id' => 1],
+                ['amount' => '15', 'user_id' => 2],
+            ], ];
+        $this->setDB($a);
+
+        $db = new Persistence_SQL($this->db->connection);
+        $u = (new Model($db, 'user'))->addFields(['name']);
+        $o = (new Model($db, 'order'))->addFields(['amount']);
+
+        // by default not set
+        $o->hasOne('user_id', $u);
+        $this->assertEquals($o->getElement('user_id')->isVisible(), true);
+
+        $o->getRef('user_id')->addTitle();
+        $this->assertEquals((bool) $o->hasElement('user'), true);
+        $this->assertEquals($o->getElement('user')->isVisible(), true);
+        $this->assertEquals($o->getElement('user_id')->isVisible(), false);
+
+        // if it is set manually then it will not be changed
+        $o = (new Model($db, 'order'))->addFields(['amount']);
+        $o->hasOne('user_id', $u);
+        $o->getElement('user_id')->ui['visible'] = true;
+        $o->getRef('user_id')->addTitle();
+
+        $this->assertEquals($o->getElement('user_id')->isVisible(), true);
     }
 }

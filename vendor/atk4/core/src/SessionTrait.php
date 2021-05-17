@@ -26,14 +26,16 @@ trait SessionTrait
     public function startSession($options = [])
     {
         // all methods use this method to start session, so we better check
-        // NameTrait existance here in one place.
+        // NameTrait existence here in one place.
         if (!isset($this->_nameTrait)) {
             throw new Exception(['Object should have NameTrait applied to use session']);
         }
 
         switch (session_status()) {
             case PHP_SESSION_DISABLED:
+                // @codeCoverageIgnoreStart - impossible to test
                 throw new Exception(['Sessions are disabled on server']);
+                // @codeCoverageIgnoreEnd
                 break;
             case PHP_SESSION_NONE:
                 session_start($options);
@@ -65,7 +67,7 @@ trait SessionTrait
         $this->startSession();
 
         if (is_callable($value)) {
-            $value = call_user_func($value);
+            $value = call_user_func($value, $key);
         }
 
         $_SESSION[$this->session_key][$this->name][$key] = $value;
@@ -88,10 +90,6 @@ trait SessionTrait
         if (!isset($_SESSION[$this->session_key][$this->name][$key])
             || is_null($_SESSION[$this->session_key][$this->name][$key])
         ) {
-            if (is_callable($default)) {
-                $default = call_user_func($default);
-            }
-
             return $this->memorize($key, $default);
         } else {
             return $this->recall($key);
@@ -115,7 +113,7 @@ trait SessionTrait
             || is_null($_SESSION[$this->session_key][$this->name][$key])
         ) {
             if (is_callable($default)) {
-                $default = call_user_func($default);
+                $default = call_user_func($default, $key);
             }
 
             return $default;
@@ -125,7 +123,7 @@ trait SessionTrait
     }
 
     /**
-     * Forget session data for arg $key. If $key is omitted will forget all
+     * Forget session data for $key. If $key is omitted will forget all
      * associated session data.
      *
      * @param string $key Optional key of data to forget

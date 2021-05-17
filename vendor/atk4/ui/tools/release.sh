@@ -33,24 +33,25 @@ git branch release/$version
 git checkout release/$version
 
 # Find out previous version
-prev_version=$(git log --tags --simplify-by-decoration --pretty="format:%d" | grep -Eo '[0-9\.]+' | head -1)
+prev_version=$(git log --tags --simplify-by-decoration --pretty="format:%d" | grep -Eo '[0-9\.A-Z-]+' | head -1)
 
 echo "Releasing $prev_version -> $version"
 
 vimr CHANGELOG.md
 
 # Compute diffs
-git log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset' --abbrev-commit --date=relative $prev_version...
+#git log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset' --abbrev-commit --date=relative $prev_version...
 
-git log --pretty=full $prev_version... | grep '#[0-9]*' | sed 's/.*#\([0-9]*\).*/\1/' | sort | uniq | while read i; do
-    echo "-[ $i ]-------------------------------------------------------------------------------"
-    ghi --color show $i | head -50
-done
+#git log --pretty=full $prev_version... | grep '#[0-9]*' | sed 's/.*#\([0-9]*\).*/\1/' | sort | uniq | while read i; do
+    #echo "-[ $i ]-------------------------------------------------------------------------------"
+    #ghi --color show $i | head -50
+#done
 
 open "https://github.com/atk4/$product/compare/$prev_version...develop"
 
 # Update dependency versions
-sed -i "" -e '/atk4\/schema/s/dev-develop/\*/' composer.json # workaround composers inability to change both requries simultaniously
+sed -i "" -e '/atk4.*dev-develop/d' composer.json
+composer update
 composer require atk4/core atk4/data
 
 composer update
@@ -71,7 +72,7 @@ merge_tag=$(git rev-parse HEAD)
 git commit -m "Set up stable dependencies for $version" composer.json
 
 # Build jsLib and bundle
-(cd js; npm run build)
+(cd js; npm install; npm run build)
 
 # Build CSS
 lessc public/agileui.less public/agileui.css  --clean-css="--s1 --advanced --compatibility=ie8" --source-map
@@ -80,8 +81,8 @@ uglifyjs --compress -- public/agileui.js > public/agileui.min.js
 echo '!agileui.css' >> public/.gitignore
 echo '!agileui.css.map' >> public/.gitignore
 echo '!agileui.min.js' >> public/.gitignore
-echo '!atk4JS.js' >> public/.gitignore
-echo '!atk4JS.min.js' >> public/.gitignore
+echo '!atkjs-ui.js' >> public/.gitignore
+echo '!atkjs-ui.min.js' >> public/.gitignore
 #sed  -i "" '/^lib/d' js/.gitignore
 git add public
 git commit -m "Build release $version" public

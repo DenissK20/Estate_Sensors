@@ -1,26 +1,32 @@
-import $ from 'jquery';
+import atkPlugin from 'plugins/atkPlugin';
 
-export default class ajaxec {
-    constructor(element, options) {
-        const $element = $(element);
 
-        // ask for user confirmation just before
-        // TODO: because this is constructor, button can't be clicked again :(
-        if (options.confirm) {
-            if (!confirm(options.confirm)) {
-                return ;
+export default class ajaxec extends atkPlugin {
+
+    main() {
+        //Allow user to confirm if available.
+        if(this.settings.confirm){
+            if(confirm(this.settings.confirm)) {
+                this.doExecute();
+            }
+        } else {
+            if (!this.$el.hasClass('loading')){
+              this.doExecute();
             }
         }
+    }
 
-        $element.api({
+    doExecute() {
+        this.$el.api({
             on: 'now',
-            url: options.uri,
-            data: options.uri_options,
+            url: this.settings.uri,
+            data: this.settings.uri_options,
             method: 'POST',
-            obj: $element
+            obj: this.$el,
         });
     }
 }
+
 
 ajaxec.DEFAULTS = {
     uri: null,

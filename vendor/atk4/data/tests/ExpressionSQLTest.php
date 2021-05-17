@@ -8,7 +8,7 @@ use atk4\data\Persistence_SQL;
 /**
  * @coversDefaultClass \atk4\data\Model
  */
-class ExpressionSQLTest extends SQLTestCase
+class ExpressionSQLTest extends \atk4\schema\PHPUnit_SchemaTestCase
 {
     public function testNakedExpression()
     {
@@ -32,10 +32,12 @@ class ExpressionSQLTest extends SQLTestCase
         $i = (new Model($db, 'invoice'))->addFields(['total_net', 'total_vat']);
         $i->addExpression('total_gross', '[total_net]+[total_vat]');
 
-        $this->assertEquals(
-            'select `id`,`total_net`,`total_vat`,(`total_net`+`total_vat`) `total_gross` from `invoice`',
-            $i->action('select')->render()
-        );
+        if ($this->driver == 'sqlite') {
+            $this->assertEquals(
+                'select "id","total_net","total_vat",("total_net"+"total_vat") "total_gross" from "invoice"',
+                $i->action('select')->render()
+            );
+        }
 
         $i->tryLoad(1);
         $this->assertEquals(10, $i['total_net']);
@@ -47,10 +49,12 @@ class ExpressionSQLTest extends SQLTestCase
 
         $i->addExpression('double_total_gross', '[total_gross]*2');
 
-        $this->assertEquals(
-            'select `id`,`total_net`,`total_vat`,(`total_net`+`total_vat`) `total_gross`,((`total_net`+`total_vat`)*2) `double_total_gross` from `invoice`',
-            $i->action('select')->render()
-        );
+        if ($this->driver == 'sqlite') {
+            $this->assertEquals(
+                'select "id","total_net","total_vat",("total_net"+"total_vat") "total_gross",(("total_net"+"total_vat")*2) "double_total_gross" from "invoice"',
+                $i->action('select')->render()
+            );
+        }
 
         $i->tryLoad(1);
         $this->assertEquals(($i['total_net'] + $i['total_vat']) * 2, $i['double_total_gross']);
@@ -71,10 +75,12 @@ class ExpressionSQLTest extends SQLTestCase
             return '[total_net]+[total_vat]';
         });
 
-        $this->assertEquals(
-            'select `id`,`total_net`,`total_vat`,(`total_net`+`total_vat`) `total_gross` from `invoice`',
-            $i->action('select')->render()
-        );
+        if ($this->driver == 'sqlite') {
+            $this->assertEquals(
+                'select "id","total_net","total_vat",("total_net"+"total_vat") "total_gross" from "invoice"',
+                $i->action('select')->render()
+            );
+        }
 
         $i->tryLoad(1);
         $this->assertEquals(10, $i['total_net']);
@@ -98,10 +104,12 @@ class ExpressionSQLTest extends SQLTestCase
         $i = (new Model($db, 'invoice'))->addFields(['total_net', 'total_vat']);
         $i->addExpression('sum_net', $i->action('fx', ['sum', 'total_net']));
 
-        $this->assertEquals(
-            'select `id`,`total_net`,`total_vat`,(select sum(`total_net`) from `invoice`) `sum_net` from `invoice`',
-            $i->action('select')->render()
-        );
+        if ($this->driver == 'sqlite') {
+            $this->assertEquals(
+                'select "id","total_net","total_vat",(select sum("total_net") from "invoice") "sum_net" from "invoice"',
+                $i->action('select')->render()
+            );
+        }
 
         $i->tryLoad(1);
         $this->assertEquals(10, $i['total_net']);
@@ -118,6 +126,13 @@ class ExpressionSQLTest extends SQLTestCase
 
     public function testExpressions()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+        if ($this->driver == 'mysql') {
+            $this->markTestIncomplete('This test is not supported on Mysql (|| does not concatenate strings on mysql)');
+        }
+
         $a = [
             'user' => [
                 1 => ['id' => 1, 'name' => 'John', 'surname' => 'Smith', 'cached_name' => 'John Smith'],
@@ -132,10 +147,12 @@ class ExpressionSQLTest extends SQLTestCase
         $m->addExpression('full_name', '[name] || " " || [surname]');
         $m->addCondition($m->expr('[full_name] != [cached_name]'));
 
-        $this->assertEquals(
-            'select `id`,`name`,`surname`,`cached_name`,(`name` || " " || `surname`) `full_name` from `user` where (`name` || " " || `surname`) != `cached_name`',
-            $m->action('select')->render()
-        );
+        if ($this->driver == 'sqlite') {
+            $this->assertEquals(
+                'select "id","name","surname","cached_name",("name" || " " || "surname") "full_name" from "user" where ("name" || " " || "surname") != "cached_name"',
+                $m->action('select')->render()
+            );
+        }
 
         $m->tryLoad(1);
         $this->assertEquals(null, $m['name']);
@@ -178,5 +195,33 @@ class ExpressionSQLTest extends SQLTestCase
         $this->assertEquals(4, $m['sum']);
 
         $this->assertEquals(null, $m->unload()->save(['a' => 4, 'b' => 5])->get('sum'));
+    }
+
+    public function testExpressionActionAlias()
+    {
+        $db = new Persistence_SQL($this->db->connection);
+        $m = new Model($db, false);
+        $m->addExpression('x', '2+3');
+
+        // use alias as array key if it is set
+        $q = $m->action('field', ['x', 'alias'=>'foo']);
+        $this->assertEquals([0=>['foo'=>5]], $q->get());
+
+        // if alias is not set, then use field name as key
+        $q = $m->action('field', ['x']);
+        $this->assertEquals([0=>['x'=>5]], $q->get());
+
+        // FX actions
+        $q = $m->action('fx', ['sum', 'x', 'alias'=>'foo']);
+        $this->assertEquals([0=>['foo'=>5]], $q->get());
+
+        $q = $m->action('fx', ['sum', 'x']);
+        $this->assertEquals([0=>['sum_x'=>5]], $q->get());
+
+        $q = $m->action('fx0', ['sum', 'x', 'alias'=>'foo']);
+        $this->assertEquals([0=>['foo'=>5]], $q->get());
+
+        $q = $m->action('fx0', ['sum', 'x']);
+        $this->assertEquals([0=>['sum_x'=>5]], $q->get());
     }
 }

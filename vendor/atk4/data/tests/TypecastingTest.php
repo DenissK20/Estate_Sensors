@@ -32,7 +32,7 @@ class MyDateTime extends \DateTime
 /**
  * @coversDefaultClass \atk4\data\Model
  */
-class TypecastingTest extends SQLTestCase
+class TypecastingTest extends \atk4\schema\PHPUnit_SchemaTestCase
 {
     //    public $debug = true;
     public function testType()
@@ -121,6 +121,10 @@ class TypecastingTest extends SQLTestCase
 
     public function testEmptyValues()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $a = [
             'types' => [
                 1 => $v = [
@@ -213,6 +217,10 @@ class TypecastingTest extends SQLTestCase
 
     public function testTypecastNull()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $a = [
             'test' => [
                 1 => $v = ['id' => '1', 'a' => 1, 'b' => '', 'c' => null],
@@ -276,8 +284,8 @@ class TypecastingTest extends SQLTestCase
         $m->load(1);
 
         $this->assertSame('hello world', $m['rot13']);
-        $this->assertSame('1', $m->id);
-        $this->assertSame('1', $m['id']);
+        $this->assertSame(1, (int) $m->id);
+        $this->assertSame(1, (int) $m['id']);
         $this->assertEquals('2013-02-21 05:00:12', (string) $m['datetime']);
         $this->assertEquals('2013-02-20', (string) $m['date']);
         $this->assertEquals('12:00:50', (string) $m['time']);

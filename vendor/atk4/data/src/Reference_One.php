@@ -62,7 +62,7 @@ class Reference_One extends Reference
 
     /**
      * Defines a label to go along with this field. Use getCaption() which
-     * will always return meaningfull label (even if caption is null). Set
+     * will always return meaningful label (even if caption is null). Set
      * this property to any string.
      *
      * @var string
@@ -161,7 +161,7 @@ class Reference_One extends Reference
 
         if (!$this->owner->hasElement($this->our_field)) {
             $this->owner->addField($this->our_field, [
-                'type'              => $this->type, // $this->guessFieldType(),
+                'type'              => $this->type,
                 'reference'         => $this,
                 'system'            => $this->system,
                 'join'              => $this->join,

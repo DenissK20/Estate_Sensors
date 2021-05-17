@@ -13,36 +13,128 @@ namespace atk4\ui;
  */
 class VirtualPage extends View
 {
+    /** @var callable */
     public $cb = null;
 
-    public $fx = [];
+    /** @var callable Optional callback function of virtual page */
+    public $fx = null;
 
+    /** @var string specify custom callback trigger for the URL (see Callback::$urlTrigger) */
+    public $urlTrigger = null;
+
+    /** @var string UI container class */
     public $ui = 'container';
 
+    /**
+     * Initialization.
+     */
     public function init()
     {
         parent::init();
 
-        $this->cb = $this->add('CallbackLater');
+        $this->cb = $this->_add(['Callback', 'urlTrigger'=>$this->urlTrigger ?: $this->name]);
+        $this->stickyGet($this->name);
+    }
 
+    /**
+     * Set callback function of virtual page.
+     *
+     * Note that only one callback function can be defined.
+     *
+     * @param array $fx   Need this to be defined as arrayotherwise we get warning in PHP7
+     * @param mixed $junk
+     *
+     * @return $this
+     */
+    public function set($fx = [], $junk = null)
+    {
+        if (!$fx) {
+            return $this;
+        }
+
+        if ($this->fx) {
+            throw new Exception([
+                'Callback for this Virtual Page is already defined',
+                'vp'     => $this,
+                'old_fx' => $this->fx,
+                'new_fx' => $fx,
+            ]);
+        }
+        $this->fx = $fx;
+
+        return $this;
+    }
+
+    /**
+     * Is virtual page active?
+     *
+     * @return bool
+     */
+    public function triggered()
+    {
+        return $this->cb->triggered();
+    }
+
+    /**
+     * Returns URL which you can load directly in the browser location, open in a new tab,
+     * new window or inside iframe. This URL will contain HTML for a new page.
+     *
+     * @param string $mode
+     *
+     * @return string
+     */
+    public function getURL($mode = 'callback')
+    {
+        return $this->cb->getURL($mode);
+    }
+
+    /**
+     * Return URL that is designed to be loaded from inside JavaScript and contain JSON code.
+     * This is useful for dynamically loaded Modal, Tab or Loader.
+     *
+     * @param string $mode
+     *
+     * @return string
+     */
+    public function getJSURL($mode = 'callback')
+    {
+        return $this->cb->getJSURL($mode);
+    }
+
+    /**
+     * VirtualPage is not rendered normally. It's invisible. Only when
+     * it is triggered, it will exclusively output it's content.
+     */
+    public function getHTML()
+    {
         $this->cb->set(function () {
-            if ($this->cb->triggered && $this->fx) {
-                foreach ($this->fx as $fx) {
-                    $fx($this);
+
+            // if virtual page callback is triggered
+            if ($type = $this->cb->triggered()) {
+
+                // process callback
+                if ($this->fx) {
+                    call_user_func($this->fx, $this);
                 }
-            }
 
-            if ($this->cb->triggered == 'cut') {
-                $this->app->terminate($this->render());
-            }
+                // special treatment for popup
+                if ($type == 'popup') {
+                    $this->app->html->template->set('title', $this->app->title);
+                    $this->app->html->template->setHTML('Content', parent::getHTML());
+                    $this->app->html->template->appendHTML('HEAD', $this->getJS());
 
-            if ($this->cb->triggered == 'popup') {
-                $this->ui = 'container'; // to maintain some gaps..
-                $this->app->html->template->set('title', $this->app->title);
-                $this->app->html->template->setHTML('Content', parent::getHTML());
-                $this->app->html->template->appendHTML('HEAD', $this->getJS());
+                    $this->app->terminate($this->app->html->template->render());
+                }
 
-                $this->app->terminate($this->app->html->template->render());
+                // render and terminate
+                if (isset($_GET['json'])) {
+                    $this->app->terminate($this->renderJSON());
+                }
+
+                // do not terminate if callback supplied (no cutting)
+                if ($type != 'callback') {
+                    $this->app->terminate($this->render());
+                }
             }
 
             // Remove all elements from inside the Content
@@ -60,32 +152,5 @@ class VirtualPage extends View
 
             $this->app->terminate($this->app->html->template->render());
         });
-    }
-
-    public function set($fx = [], $junk = null)
-    {
-        if (!$fx) {
-            return;
-        }
-        if (!is_array($fx)) {
-            $fx = [$fx];
-        }
-        $this->fx = $fx;
-
-        return $this;
-    }
-
-    public function getURL($mode = 'callback')
-    {
-        return $this->cb->getURL($mode);
-    }
-
-    /**
-     * VirtualPage is not rendered normally. It's invisible. Only when
-     * it is triggered, it will exclusively output
-     * it's content.
-     */
-    public function getHTML()
-    {
     }
 }

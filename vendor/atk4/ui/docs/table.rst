@@ -7,44 +7,99 @@ Table
 
 .. php:namespace:: atk4\ui
 
-Table is the simplest way to output multiple records of structured data. Table only works along with the model,
-however you can use :php:meth:`View::setSource` to inject static data (although it is slower than simply
-using a model). :ref:`no_data`
+.. php:class:: Table
 
+.. important:: For columns, see :php:class:`TableColumn\\Generic`. For DIV-based lists, see :php:class:`Lister`. For an
+    interractive features see :php:class:`Grid` and :php:class:`CRUD`.
 
-Using Table
+Table is the simplest way to output multiple records of structured, static data. For Un-structure output
+please see :php:class:`Lister`
+
+    .. image:: images/table.png
+
+Various composite components use Table as a building block, see :php:class:`Grid` and :php:class:`CRUD`.
+Main features of Table class are:
+
+ - Tabular rendering using column headers on top of markup of https://semantic-ui.com/collections/table.html.
+ - Support for data decorating. (money, dates, etc)
+ - Column decorators, icons, buttons, links and color.
+ - Support for "Totals" row.
+ - Can use Agile Data source or Static data.
+ - Custom HTML, Format hooks
+
+Basic Usage
 ===========
 
-The simplest way to create a table::
+The simplest way to create a table is when you use it with Agile Data model::
 
-    $table = $layout->add('Table');
+    $table = $app->add('Table');
     $table->setModel(new Order($db));
 
-The table will be able to automatcally determine all the fields defined in your "Order" model, map them to
+The table will be able to automatically determine all the fields defined in your "Order" model, map them to
 appropriate column types, implement type-casting and also connect your model with the appropriate data source
 (database) $db.
 
-To change the order or explicitly specify which columns must appear, you can pass list of columns as a second
-argument to setModel::
+Using with Array Data
+---------------------
 
-    $table = $layout->add('Table');
+You can also use Table with Array data source like this::
+
+    $my_array = [
+        ['name'=>'Vinny', 'surname'=>'Sihra', 'birthdate'=>new \DateTime('1973-02-03')],
+        ['name'=>'Zoe', 'surname'=>'Shatwell', 'birthdate'=>new \DateTime('1958-08-21')],
+        ['name'=>'Darcy', 'surname'=>'Wild', 'birthdate'=>new \DateTime('1968-11-01')],
+        ['name'=>'Brett', 'surname'=>'Bird', 'birthdate'=>new \DateTime('1988-12-20')],
+    ];
+
+    $table = $app->add('Table');
+    $table->setSource($my_array);
+
+    $table->addColumn('name');
+    $table->addColumn('surname', ['Link', 'url'=>'details.php?surname={$surname}']);
+    $table->addColumn('birthdate', null, ['type'=>'date']);
+
+.. warning:: I encourage you to seek appropriate Agile Data persistence instead of
+    handling data like this. The implementation of :php:meth:`View::setSource` will
+    create a model for you with Array persistence for you anyways.
+
+Adding Columns
+--------------
+
+.. php:method:: setModel(\atk4\data\Model $m, $fields = null)
+
+.. php:method:: addColumn($name, $columnDecorator = null, $field = null)
+
+To change the order or explicitly specify which field columns must appear, if you pass list of those
+fields as second argument to setModel::
+
+    $table = $app->add('Table');
     $table->setModel(new Order($db), ['name', 'price', 'amount', 'status']);
 
 Table will make use of "Only Fields" feature in Agile Data to adjust query for fetching only the necessary
 columns. See also :ref:`field_visibility`.
 
-Adding Additional Columns
--------------------------
 
-If you feel that you'd like to add several other columns to your table, you need to understand what type
-of columns they would be.
+You can also add individual column to your table::
 
-If your column is designed to carry a value of any type, then it's much better to define it as a Model
-Field. A good example of this scenario is adding "total" column to list of your invoice lines that
-already contain "price" and "amount" values. Start by adding new Field in the model that is associated
-with your table::
+    $table->setModel(new Order($db), false); // false here means - don't add any fields by default
+    $table->addColumn('name');
+    $table->addColumn('price');
 
-    $table = $layout->add('Table');
+When invoking addColumn, you have a great control over the field properties and decoration. The format
+of addColumn() is very similar to :php:meth:`Form::addField`.
+
+Calculations
+============
+
+Apart from adding columns that reflect currrent values of your database, there are several ways
+how you can calculate additional values. You must know the capabilities of your database server
+if you want to execute some calculation there. (See http://agile-data.readthedocs.io/en/develop/expressions.html)
+
+It's always a good idea to calculate column inside datababase. Lets create "total" column  which will
+multiply "price" and "amount" values. Use ``addExpression`` to provide in-line definition for this
+field if it's not alrady defined in ``Order::init()``::
+
+    $table = $app->add('Table');
     $order = new Order($db);
 
     $order->addExpression('total', '[price]*[amount]')->type = 'money';
@@ -61,7 +116,7 @@ Table object does not contain any information about your fields (such as caption
 consult your Model for the necessary field information. If you are willing to define the type but also
 specify the caption, you can use code like this::
 
-    $table = $layout->add('Table');
+    $table = $app->add('Table');
     $order = new Order($db);
 
     $order->addExpression('total', [
@@ -75,70 +130,17 @@ specify the caption, you can use code like this::
 Column Objects
 --------------
 
-Table object relies on a separate class: \atk4\ui\TableColumn\Generic to present most of the values. The goals
-of the column object is to format anything around the actual values. The type = 'money' will result in
-a custom formatting of the value, but will also require column to be right-aligned. To simplify this,
-type = 'money' will use a different column class - :php:class:`TableColumn\Money`. There are several others,
-but first we need to look at the generic column and understand it's base capabilities:
-
-.. php:class:: TableColumn\Generic
-
-A class resposnible for cell formatting. This class defines 3 main methods that is used by the Table
-when constructing HTML:
-
-.. php:method:: getHeaderCellHTML(\atk4\data\Field $f)
-
-Must respond with HTML for the header cell (`<th>`) and an appropriate caption. If necessary
-will include "sorting" icons or any other controls that go in the header of the table.
-
-The output of this field will automatically encode any values (such as caption), shorten them
-if necessary and localize them.
-
-.. php:method:: getTotalsCellHTML(\atk4\data\Field $f, $value)
-
-Provided with the field and the value, format the cell for the footer "totals" column. Table
-can rely on various strategies for calculating totals. See :php:meth:`Table::addTotals`.
-
-.. php:method:: getDataCellHTML(\atk4\data\Field f)
-
-Provided with a field, this method will respond with HTML **template**. In order to keep
-performance of Web Application at the maximum, Table will execute getDataCellHTML for all the
-fields once. When iterating, a combined template will be used to display the values.
-
-The template must not incorporate field values (simply because related model will not be
-loaded just yet), but instead should resort to tags and syntax compatible with :php:class:`Template`.
-
-A sample template could be::
-
-    <td><b>{$name}</b></td>
-
-Note that the "name" here must correspond with the field name inside the Model. You may use
-multiple field names to format the column::
-
-    <td><b>{$year}-{$month}-{$day}</b></td>
-
-The above 3 methods define first argument as a field, however it's possible to define column
-without a physical field. This makes sense for situations when column contains multiple field
-values or if it doesn't contain any values at all.
-
-Sometimes you do want to inject HTML instead of using row values:
-
-.. php:method:: getHTMLTags($model, $field = null)
-
-Return array of HTML tags that will be injected into the row template. See
-:php:ref:`table_html` for further example.
+To read more about column objects, see :ref:`tablecolumn`
 
 Advanced Column Denifitions
 ---------------------------
-
-.. php:class:: Table
 
 Table defines a method `columnFactory`, which returns Column object which is to be used to
 display values of specific model Field.
 
 .. php:method:: columnFactory(\atk4\data\Field $f)
 
-If the value of the field can be displayed by :php:class:`TableColumn\Generic` then Table will
+If the value of the field can be displayed by :php:class:`TableColumn\\Generic` then :php:class:`Table` will
 respord with object of this class. Since the default column does not contain any customization,
 then to save memory Table will re-use the same objects for all generic fields.
 
@@ -153,20 +155,24 @@ of a different class (e.g. 'money'). Value will be initialized after first call 
 
     Contains array of defined columns.
 
-.. php:method:: addColumn([$name], TableColumn\Generic $column = null, \atk4\ui\Data\Field = null)
 
-Adds a new column to the table. This method has several few usages, here is the most basic one::
 
-    $table->setModel(new Order($db), ['name', 'price', 'total']);
-    $table->addColumn(new \atk4\ui\TableColumn\Delete());
+addColumn adds a new column to the table. This method was explained above but can also be
+used to add colums without field::
+
+    $action = $this->addColumn(null, ['Actions']);
+    $actions->addAction('Test', function() { return 'ok'; });
+
 
 The above code will add a new extra column that will only contain 'delete' icon. When clicked
-it will automatically delete the record.
+it will automatically delete the corresponding record.
 
 You have probably noticed, that I have omitted the name for this column. If name is not specified
-(null) then the Column object will receive "null" when the call to
+(null) then the Column object will not be associated with any model field in
 :php:meth:`TableColumn\Generic::getHeaderCellHTML`, :php:meth:`TableColumn\Generic::getTotalsCellHTML` and
-:php:meth:`TableColumn\Generic::getDataCellHTML` will be made. The :php:class:`TableColumn\Generic` will
+:php:meth:`TableColumn\Generic::getDataCellHTML`.
+
+Some columns require name, such as :php:class:`TableColumn\Generic` will
 not be able to cope with this situations, but many other column types are perfectly fine with this.
 
 Some column classes will be able to take some information from a specified column, but will work
@@ -177,7 +183,7 @@ method will rely on 3rd argument to create a new field for you. Here is example 
 the "total" column value (as above) but using PHP math instead of doing it inside database::
 
 
-    $table = $layout->add('Table');
+    $table = $app->add('Table');
     $order = new Order($db);
 
     $table->setModel($order, ['name', 'price', 'amount', 'status']);
@@ -189,7 +195,7 @@ the "total" column value (as above) but using PHP math instead of doing it insid
 If you execute this code, you'll notice that the "total" column is now displayed last. If you
 wish to position it before status, you can use the final format of addColumn()::
 
-    $table = $layout->add('Table');
+    $table = $app->add('Table');
     $order = new Order($db);
 
     $table->setModel($order, ['name', 'price', 'amount']);
@@ -280,8 +286,8 @@ Your column now can be added to any table::
 
 IMPORTANT: HTML injection will work unless :php:attr:`Table::use_html_tags` property is disabled (for performance).
 
-Talbe Data Handling
-==================
+Table Data Handling
+===================
 
 Table is very similar to :php:class:`Lister` in the way how it loads and displays data. To control which
 data Table will be displaying you need to properly specify the model and persistence. The following two
@@ -292,14 +298,14 @@ of issues from your Github repository::
     $dropbox = \atk4\dropbox\Persistence($db_config);
     $files = new \atk4\dropbox\Model\File($dropbox);
 
-    $layout->add('Table')->setModel($files);
+    $app->add('Table')->setModel($files);
 
 
     // Show contents of dropbox
     $github = \atk4\github\Persistence_Issues($github_api_config);
     $issues = new \atk4\github\Model\Issue($github);
 
-    $layout->add('Table')->setModel($issues);
+    $app->add('Table')->setModel($issues);
 
 This example demonstrates that by selecting a 3rd party persistence implementation, you can access
 virtually any API, Database or SQL resource and it will always take care of formatting for you as well
@@ -320,7 +326,7 @@ Table Rendering Steps
 Once model is specified to the Table it will keep the object until render process will begin. Table
 columns can be defined anytime and will be stored in the :php:attr:`Table::columns` property. Columns
 without defined name will have a numeric index. It's also possible to define multiple columns per key
-in which case we call them "formatters". 
+in which case we call them "decorators".
 
 During the render process (see :php:meth:`View::renderView`) Table will perform the following actions:
 
@@ -339,26 +345,43 @@ During the render process (see :php:meth:`View::renderView`) Table will perform 
 4. If no rows were displayed, then "empty message" will be shown (see :php:attr:`Table::t_empty`).
 5. If :php:meth:`addTotals` was used, append totals row to table footer.
 
-Dealing with Multiple formatters
+Dealing with Multiple decorators
 ================================
 
-You can add column several times like this::
+.. php:method:: addDecorator($name, $columnDecorator)
+
+.. php:method:: getColumnDecorators($name)
+
+Decorator is an object, responsible for wrapping column data into a table cell (td/tr). This object
+is also responsible for setting class of the column, labeling the column and somehow making it look
+nicer especially inside a table.
+
+.. important:: Decorating is not formatting. If we talk "date", then in order to display it to
+    the user, date must be in a proper format. Formatting of data is done by Persistence_UI and
+    is not limited to the table columns. Decorators may add an icon, change cell style, align cell
+    or hide overflowing text to make table output look better.
+
+One column may have several decorators::
 
     $table->addColumn('salary', new \atk4\ui\TableColumn\Money());
-    $table->addColumn('salary', new \atk4\ui\TableColumn\Link(['page2']));
+    $table->addDecorator('salary', new \atk4\ui\TableColumn\Link(['page2']));
 
-In this case system needs to format the output as a currency and subsequently format it as a link.
-Formattrers are always applied in the same orders they are defined. Remember that setModel() will
-typically set a Generic fromatter for all columns.
+In this case the first decorator will take care of tr/td tags but second decorator will compliment
+it. Result is that table will output 'salary' as a currency (align and red ink) and also decorate
+it with a link. The first decorator will be responsible for the table column header. If field type
+is not set or type is like "integer", then a generic formatter is used.
 
 There are a few things to note:
 
-1. calling addColumn multiple time will convert :php:attr:`Table::columns` value for that column
-   into array containing all column objects
+1. Property :php:attr:`Table::columns` contains either a single or multiple decorators for each
+   column. Some tasks will be done by first decorator only, such as getting TH/header cell. Others will
+   be done by all decorators, such as collecting classes / styles for the cell or wrapping formatted
+   content (link, icon, template).
 
-2. formatting is always applied in same order as defined - in example above Money first, Link after. 
+2. formatting is always applied in same order as defined - in example above Money first, Link after.
 
-3. output of the 'Money' formatter is used into Link formatter as if it would be value of cell.
+3. output of the 'Money' decorator is used into Link decorator as if it would be value of cell, however
+   decorators have access to original value also. Decorator implementation is usually aware of combinations.
 
 :php:meth:`TableColumn\Money::getDataCellTemplate` is called, which returns ONLY the HTML value,
 without the <td> cell itself. Subsequently :php:meth:`TableColumn\Link::getDataCellTemplate` is called
@@ -391,12 +414,12 @@ to make a note on how template caching works then,
  - values are encapsulated for named fields.
  - values are concatinated by anonymous fields.
  - <td> properties are stacked
- - last formatter will convert array with td properties into an actual tag.
+ - last decorator will convert array with td properties into an actual tag.
 
 Header and Footer
 -----------------
-When using with multiple formatters, the last formatter gets to render Header column.
-The footer (totals) uses the same approach for geterating template, however a
+When using with multiple decorators, the last decorator gets to render Header cell.
+The footer (totals) uses the same approach for generating template, however a
 different methods are called from the columns: getTotalsCellTemplate
 
 Redefining
@@ -405,7 +428,7 @@ Redefining
 If you are defining your own column, you may want to re-define getDataCellTemplate. The
 getDataCellHTML can be left as-is and will be handled correctly. If you have overriden
 getDataCellHTML only, then your column will still work OK provided that it's used as a
-last formatter.
+last decorator.
 
 Advanced Usage
 ==============
@@ -417,6 +440,29 @@ Toolbar, Quick-search and Paginator
 -----------------------------------
 
 See :php:class:`Grid`
+
+Resizable Columns
+-----------------
+
+.. php:method:: resizableColumn($fx = null, $widths = null, $resizerOptions = null)
+
+Each table's column width can be resize by dragging the column right border::
+
+    $table->resizableColumn();
+
+You may specify a callback function to the method. The callback will return a json string containing each
+column name in table with their new width in pixel.::
+
+    $table->resizableColumn(function($j, $w){
+        // do something with new column width
+        $columnWidths = json_decode($w);
+        return;
+    }, [200,300,100,100,100]);
+
+Note that you may specify an array of integer representing the initial width value in pixel for each column in your table.
+
+Finally you may also specify some of the resizer options use by column-resizer. Column-resizer is the npm package js library use for implementing
+the atkColumnResizer jQuery plugin.
 
 Column attributes and classes
 =============================
@@ -481,7 +527,7 @@ Columns without fields
 
 You can add column to a table that does not link with field::
 
-    $cb = $table->addColumn('Checkbox');
+    $cb = $table->addColumn('CheckBox');
 
 
 Using dynamic values
@@ -493,105 +539,4 @@ with row value or injected HTML.
 
 For further examples of and advanced usage, see implementation of :php:class:`TableColumn\Status`.
 
-
-Standard Column Types
-=====================
-
-In addition to :php:class:`TableColumn\Generic`, Agile UI includes several column implementations.
-
-Link
-----
-
-.. php:class:: TableColumn\Link
-
-Put `<a href..` link over the value of the cell. The page property can be specified to constructor. There
-are two usage patterns. With the first you can specify full URL as a string::
-
-    $table->addColumn('name', new \atk4\ui\TableColumn\Link('http://google.com/?q={$name}'));
-
-The name value will be automatically inserted. The other option is to use page array::
-
-    $table->addColumn('name', new \atk4\ui\TableColumn\Link(['details', 'id'=>'{$id}', 'status'=>'{$status}']));
-
-Money
------
-
-.. php:class:: TableColumn\Money
-
-Helps formatting monetary values. Will align value to the right and if value is less than zero will also
-use red text. The money cells are not wrapped.
-
-For the actual number formatting, see :ref:`ui_persistence`
-
-Status
-------
-
-.. php:class:: TableColumn\Status
-
-Allow you to set highlight class and icon based on column value. This is most suitable for columns that
-contain pre-defined values.
-
-If your column "status" can be one of the following "pending", "declined", "archived" and "paid" and you would like
-to use different icons and colors to emphasise status::
-
-
-    $states = [ 'positive'=>['paid', 'archived'], 'negative'=>['declined'] ];
-
-    $table->addColumn('status', new \atk4\ui\TableColumn\Status($states));
-
-Current list of states supported:
-
- - positive (icon checkmark)
- - negative (icon close)
- - and the default/unspecified state (icon question)
-
-(list of states may be expanded furteher)
-
-Template
---------
-
-.. php:class:: TableColumn\Template
-
-This column is suitable if you wish to have custom cell formatting but do not wish to go through
-the trouble of setting up your own class.
-
-If you wish to display movie rating "4 out of 10" based around the column "rating", you can use::
-
-    $table->addColumn('rating', new \atk4\ui\TableColumn\Template('{$rating} out of 10'));
-
-Template may incorporate values from multiple fields in a data row, but current implementation
-will only work if you asign it to a primary column (by passing 1st argument to addColumn).
-
-(In the future it may be optional with the ability to specify caption).
-
-Checkbox
---------
-
-.. php:class:: TableColumn\Checkbox
-
-.. php:method:: jsChecked()
-
-Adding this column will render checkbox for each row. This column must not be used on a field.
-Checkbox column provides you with a handy jsChecked() method, which you can use to reference
-current item selection. The next code will allow you to select the checkboxes, and when you
-click on the button, it will reload $segment component while passing all the id's::
-
-    $box = $table->addColumn(new \atk4\ui\TableColumn\Checkbox());
-
-    $button->on('click', new jsReload($segment, ['ids'=>$box->jsChecked()]));
-
-jsChecked expression represents a JavaScript string which you can place inside a form field,
-use as argument etc.
-
-Actions
--------
-
-.. php:class:: TableColumn\Actions
-
-This column can have number of buttons (or similar views) inside a column. This would allow you
-to interract with each row directly.
-
-The basic usage format is::
-
-    $act = $table->addColumn(new \atk4\ui\TableColumn\Actions());
 

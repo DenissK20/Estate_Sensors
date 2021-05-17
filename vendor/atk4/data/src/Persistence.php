@@ -15,12 +15,16 @@ class Persistence
     use \atk4\core\FactoryTrait;
     use \atk4\core\HookTrait;
     use \atk4\core\AppScopeTrait;
+    use \atk4\core\DynamicMethodTrait;
     use \atk4\core\NameTrait;
+
+    /** @var string Connection driver name, for example, mysql, pgsql, oci etc. */
+    public $driver;
 
     /**
      * Connects database.
      *
-     * @param string $dsn      Format as PDO DSN or use "mysql://user:pass@host/db;option=blah", leaving user and password = null
+     * @param string $dsn      Format as PDO DSN or use "mysql://user:pass@host/db;option=blah", leaving user and password arguments = null
      * @param string $user
      * @param string $password
      * @param array  $args
@@ -29,41 +33,34 @@ class Persistence
      */
     public static function connect($dsn, $user = null, $password = null, $args = [])
     {
-        // Try to dissect DSN into parts
-        if (is_array($dsn)) {
-            $parts = $dsn;
-        } else {
-            $parts = parse_url($dsn);
-        }
+        // Process DSN string
+        $dsn = \atk4\dsql\Connection::normalizeDSN($dsn, $user, $password);
 
-        // If parts are usable, convert DSN format
-        if ($parts !== false && isset($parts['host']) && isset($parts['path']) && $user === null && $password === null) {
-            // DSN is using URL-like format, so we need to convert it
-            $dsn = $parts['scheme'].':host='.$parts['host'].';dbname='.substr($parts['path'], 1);
-            $user = $parts['user'];
-            $password = $parts['pass'];
-        }
+        $driver = isset($args['driver']) ? strtolower($args['driver']) : $dsn['driver'];
 
-        // Omitting UTF8 is always a bad problem, so unless it's specified we will do that to prevent nasty problems.
-        if (strpos($dsn, ';charset=') === false) {
-            $dsn .= ';charset=utf8';
-        }
-
-        if (strpos($dsn, ':') === false) {
-            throw new Exception(["Your DSN format is invalid. Must be in 'driver:host:options' format", 'dsn' => $dsn]);
-        }
-        $driver = explode(':', $dsn, 2)[0];
-
-        switch (strtolower(isset($args['driver']) ?: $driver)) {
+        switch ($driver) {
             case 'mysql':
+            case 'oci':
+            case 'oci12':
+                // Omitting UTF8 is always a bad problem, so unless it's specified we will do that
+                // to prevent nasty problems. This is un-tested on other databases, so moving it here.
+                // It gives problem with sqlite
+                if (strpos($dsn['dsn'], ';charset=') === false) {
+                    $dsn['dsn'] .= ';charset=utf8';
+                }
+
+            case 'pgsql':
             case 'dumper':
             case 'counter':
             case 'sqlite':
-                return new Persistence_SQL($dsn, $user, $password, $args);
+                $db = new Persistence_SQL($dsn['dsn'], $dsn['user'], $dsn['pass'], $args);
+                $db->driver = $driver;
+
+                return $db;
             default:
                 throw new Exception([
                     'Unable to determine persistence driver from DSN',
-                    'dsn' => $dsn,
+                    'dsn' => $dsn['dsn'],
                 ]);
         }
     }
@@ -78,10 +75,12 @@ class Persistence
      */
     public function add($m, $defaults = [])
     {
+        /*
         if (isset($defaults[0])) {
             $m->table = $defaults[0];
             unset($defaults[0]);
         }
+         */
 
         $m = $this->factory($m, $defaults);
 
@@ -95,11 +94,10 @@ class Persistence
             ]);
         }
 
-        $m->setDefaults($defaults);
         $m->persistence = $this;
         $m->persistence_data = [];
         $this->initPersistence($m);
-        $m = $this->_add($m, $defaults);
+        $m = $this->_add($m);
 
         $this->hook('afterAdd', [$m]);
 
@@ -169,7 +167,7 @@ class Persistence
             $f = $m->hasElement($key);
 
             // Figure out the name of the destination field
-            $field = $f->actual ?: $key;
+            $field = isset($f->actual) && $f->actual ? $f->actual : $key;
 
             // We have no knowledge of the field, it wasn't defined, so
             // we will leave it as-is.
@@ -180,7 +178,7 @@ class Persistence
 
             // check null values for mandatory fields
             if ($value === null && $f->mandatory) {
-                throw new Exception(['Mandatory field value cannot be null', 'field' => $key]);
+                throw new ValidationException([$key => 'Mandatory field value cannot be null']);
             }
 
             // Expression and null cannot be converted.

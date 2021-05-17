@@ -5,7 +5,7 @@ namespace atk4\data\tests;
 use atk4\data\Model;
 use atk4\data\Persistence_SQL;
 
-class FieldTest extends SQLTestCase
+class FieldTest extends \atk4\schema\PHPUnit_SchemaTestCase
 {
     public function testDirty1()
     {
@@ -35,6 +35,18 @@ class FieldTest extends SQLTestCase
 
         $m['foo'] = 'xx';
         $this->assertEquals(false, $m->isDirty('foo'));
+    }
+
+    public function testCompare()
+    {
+        $m = new Model();
+        $m->addField('foo', ['default' => 'abc']);
+
+        $this->assertEquals(true, $m->compare('foo', 'abc'));
+        $m['foo'] = 'zzz';
+
+        $this->assertEquals(false, $m->compare('foo', 'abc'));
+        $this->assertEquals(true, $m->compare('foo', 'zzz'));
     }
 
     public function testMandatory1()
@@ -126,6 +138,10 @@ class FieldTest extends SQLTestCase
 
     public function testMandatory3()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $db = new Persistence_SQL($this->db->connection);
         $a = [
             'user' => [
@@ -230,6 +246,58 @@ class FieldTest extends SQLTestCase
         $this->assertSame(null, $m['foo']);
     }
 
+    /**
+     * @expectedException Exception
+     */
+    public function testValues1()
+    {
+        $m = new Model();
+        $m->addField('foo', ['values' => ['foo', 'bar']]);
+        $m['foo'] = 4;
+    }
+
+    public function testValues2()
+    {
+        $m = new Model();
+        $m->addField('foo', ['values' => [3=>'bar']]);
+        $m['foo'] = 3;
+
+        $this->assertSame(3, $m['foo']);
+
+        $m['foo'] = null;
+        $this->assertSame(null, $m['foo']);
+    }
+
+    /**
+     * @expectedException Exception
+     */
+    public function testValues3()
+    {
+        $m = new Model();
+        $m->addField('foo', ['values' => [1=>'bar']]);
+        $m['foo'] = true;
+    }
+
+    /**
+     * @expectedException Exception
+     */
+    public function testValues3a()
+    {
+        $m = new Model();
+        $m->addField('foo', ['values' => [1=>'bar']]);
+        $m['foo'] = 'bar';
+    }
+
+    public function testValues4()
+    {
+        // PHP type control is really crappy...
+        // This test has no purpose but it stands testament
+        // to a weird behaviours of PHP
+        $m = new Model();
+        $m->addField('foo', ['values' => ['1a'=>'bar']]);
+        $m['foo'] = '1a';
+    }
+
     public function testPersist()
     {
         $db = new Persistence_SQL($this->db->connection);
@@ -289,6 +357,10 @@ class FieldTest extends SQLTestCase
 
     public function testTitle()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $db = new Persistence_SQL($this->db->connection);
         $a = [
             'user' => [
@@ -350,6 +422,10 @@ class FieldTest extends SQLTestCase
 
     public function testActual()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $db = new Persistence_SQL($this->db->connection);
         $a = [
             'user' => [

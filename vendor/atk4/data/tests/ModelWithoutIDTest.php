@@ -10,7 +10,7 @@ use atk4\data\Persistence_SQL;
  *
  * Tests cases when model have to work with data that does not have ID field
  */
-class ModelWithoutIDTest extends SQLTestCase
+class ModelWithoutIDTest extends \atk4\schema\PHPUnit_SchemaTestCase
 {
     public $m;
 
@@ -63,6 +63,10 @@ class ModelWithoutIDTest extends SQLTestCase
      */
     public function testInsert()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $this->m->insert(['name'=>'Joe']);
         $this->assertEquals(3, $this->m->action('count')->getOne());
     }
@@ -72,6 +76,10 @@ class ModelWithoutIDTest extends SQLTestCase
      */
     public function testSave1()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $this->m->tryLoadAny();
         $this->m->saveAndUnload();
 
@@ -83,6 +91,10 @@ class ModelWithoutIDTest extends SQLTestCase
      */
     public function testSave2()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $this->m->tryLoadAny();
         $this->m->save();
 

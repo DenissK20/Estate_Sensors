@@ -17,6 +17,8 @@ class Model implements \ArrayAccess, \IteratorAggregate
     }
     use \atk4\core\NameTrait;
     use \atk4\core\DIContainerTrait;
+    use \atk4\core\FactoryTrait;
+    use \atk4\core\AppScopeTrait;
 
     // {{{ Properties of the class
 
@@ -25,35 +27,35 @@ class Model implements \ArrayAccess, \IteratorAggregate
      *
      * @var string
      */
-    public $_default_class_addField = 'atk4\data\Field';
+    public $_default_seed_addField = ['\atk4\data\Field'];
 
     /**
      * The class used by hasOne() method.
      *
      * @var string
      */
-    public $_default_class_hasOne = 'atk4\data\Reference_One';
+    public $_default_seed_hasOne = ['\atk4\data\Reference_One'];
 
     /**
      * The class used by hasMany() method.
      *
      * @var string
      */
-    public $_default_class_hasMany = 'atk4\data\Reference_Many';
+    public $_default_seed_hasMany = ['\atk4\data\Reference_Many'];
 
     /**
      * The class used by addField() method.
      *
      * @var string
      */
-    public $_default_class_addExpression = 'atk4\data\Field_Callback';
+    public $_default_seed_addExpression = ['\atk4\data\Field_Callback'];
 
     /**
      * The class used by join() method.
      *
      * @var string
      */
-    public $_default_class_join = 'atk4\data\Join';
+    public $_default_seed_join = ['\atk4\data\Join'];
 
     /**
      * Contains name of table, session key, collection or file where this
@@ -71,8 +73,17 @@ class Model implements \ArrayAccess, \IteratorAggregate
 
     /**
      * Use alias for $table.
+     *
+     * @var string
      */
     public $table_alias = null;
+
+    /**
+     * Sequence name. Some DB engines use sequence for generating auto_increment IDs.
+     *
+     * @var string
+     */
+    public $sequence = null;
 
     /**
      * Persistence driver inherited from atk4\data\Persistence.
@@ -180,6 +191,14 @@ class Model implements \ArrayAccess, \IteratorAggregate
     public $title_field = 'name';
 
     /**
+     * Caption of the model. Can be used in UI components, for example.
+     * Should be iun plain English and ready for proper localization.
+     *
+     * @var string
+     */
+    public $caption = null;
+
+    /**
      * When using onlyFields() this property will contain list of desired
      * fields.
      *
@@ -257,14 +276,14 @@ class Model implements \ArrayAccess, \IteratorAggregate
      * The second use actually calls add() but is preferred usage because:
      *  - it's shorter
      *  - type hinting will work;
+     *  - you can specify string for a table
      *
      * @param Persistence|array $persistence
-     * @param array             $defaults
+     * @param string|array      $defaults
      */
     public function __construct($persistence = null, $defaults = [])
     {
-        // persistence is optional
-        if (is_array($persistence)) {
+        if (is_string($persistence) || is_array($persistence)) {
             $defaults = $persistence;
             $persistence = null;
         }
@@ -281,7 +300,7 @@ class Model implements \ArrayAccess, \IteratorAggregate
         $this->setDefaults($defaults);
 
         if ($persistence) {
-            $persistence->add($this, $defaults);
+            $persistence->add($this);
         }
     }
 
@@ -347,8 +366,7 @@ class Model implements \ArrayAccess, \IteratorAggregate
      */
     public function addField($name, $defaults = [])
     {
-        $c = $this->_default_class_addField;
-        $field = new $c($defaults);
+        $field = $this->factory($this->mergeSeeds($defaults, $this->_default_seed_addField), null, '\atk4\data\Field');
         $this->add($field, $name);
 
         return $field;
@@ -547,17 +565,43 @@ class Model implements \ArrayAccess, \IteratorAggregate
                 ]);
             }
 
+            // enum property support
             if ($f->enum && $f->type != 'boolean') {
                 if ($value === '') {
                     $value = null;
                 }
-                if (!in_array($value, $f->enum, true) && $value !== null) {
+                if ($value !== null && !in_array($value, $f->enum, true)) {
                     throw new Exception([
                         'This is not one of the allowed values for the field',
                         'field' => $field,
                         'model' => $this,
                         'value' => $value,
                         'enum'  => $f->enum,
+                    ]);
+                }
+            }
+
+            // values property support
+            if ($f->values) {
+                if ($value === '') {
+                    $value = null;
+                } elseif ($value === null) {
+                    // all is good
+                } elseif (!is_string($value) && !is_int($value)) {
+                    throw new Exception([
+                        'Field can be only one of pre-defined value, so only "string" and "int" keys are supported',
+                        'field' => $field,
+                        'model' => $this,
+                        'value' => $value,
+                        'values'=> $f->values,
+                    ]);
+                } elseif (!array_key_exists($value, $f->values)) {
+                    throw new Exception([
+                        'This is not one of the allowed values for the field',
+                        'field'   => $field,
+                        'model'   => $this,
+                        'value'   => $value,
+                        'values'  => $f->values,
                     ]);
                 }
             }
@@ -617,6 +661,60 @@ class Model implements \ArrayAccess, \IteratorAggregate
         $f = $this->hasElement($field);
 
         return $f ? $f->default : null;
+    }
+
+    /**
+     * Return (possibly localized) $model->caption.
+     *
+     * @return string
+     */
+    public function getModelCaption()
+    {
+        if ($this->caption) {
+            return $this->caption;
+        }
+
+        // if caption is not set, then generate it from model class name
+        $s = strtolower(get_class($this));
+        //$s = str_replace('model', '', $s);
+        $s = preg_split('/[\\\\_]/', $s, -1, PREG_SPLIT_NO_EMPTY);
+        $s = array_map('trim', $s);
+        $s = ucwords(implode(' ', $s));
+
+        return $s;
+    }
+
+    /**
+     * Return value of $model[$model->title_field]. If not set, returns id value.
+     *
+     * @return mixed
+     */
+    public function getTitle()
+    {
+        return
+            $this->hasElement($this->title_field)
+            && $this->getElement($this->title_field) instanceof \atk4\data\Field
+                ? $this[$this->title_field]
+                : $this->id;
+    }
+
+    /**
+     * You can compare new value of the field with existing one without
+     * retrieving. In the trivial case it's same as ($value == $model[$name])
+     * but this method can be used for:.
+     *
+     *  - comparing values that can't be received - passwords, encrypted data
+     *  - comparing images
+     *  - if get() is expensive (e.g. retrieve object)
+     *
+     * @param string $name
+     * @param mixed  $value
+     *
+     * @return bool true if $value matches saved one
+     */
+    public function compare($name, $value)
+    {
+        return $this->getElement($name)->compare($value);
     }
 
     /**
@@ -771,11 +869,11 @@ class Model implements \ArrayAccess, \IteratorAggregate
         }
 
         if ($f) {
-            $f->system = true;
             if ($operator === '=' || func_num_args() == 2) {
                 $v = $operator === '=' ? $value : $operator;
 
                 if (!is_object($v) && !is_array($v)) {
+                    $f->system = true;
                     $f->default = $v;
                 }
             }
@@ -948,7 +1046,10 @@ class Model implements \ArrayAccess, \IteratorAggregate
     public function duplicate($new_id = null)
     {
         $this->id = null;
-        $this[$this->id_field] = $new_id;
+
+        if ($this->id_field) {
+            $this[$this->id_field] = $new_id;
+        }
 
         return $this;
     }
@@ -965,8 +1066,8 @@ class Model implements \ArrayAccess, \IteratorAggregate
      * but will assume that both models are compatible,
      * therefore will not perform any loading.
      *
-     * @param string $class
-     * @param array  $options
+     * @param string|Model $class
+     * @param array        $options
      *
      * @return Model
      */
@@ -978,7 +1079,7 @@ class Model implements \ArrayAccess, \IteratorAggregate
     /**
      * Store the data into database, but will never attempt to
      * reload the data. Additionally any data will be unloaded.
-     * Use this instead of save() if you want to squezee a
+     * Use this instead of save() if you want to squeeze a
      * little more performance out.
      *
      * @param array $data
@@ -1002,8 +1103,8 @@ class Model implements \ArrayAccess, \IteratorAggregate
      * This will cast Model into another class without
      * loosing state of your active record.
      *
-     * @param string $class
-     * @param array  $options
+     * @param string|Model $class
+     * @param array        $options
      *
      * @return Model
      */
@@ -1029,8 +1130,8 @@ class Model implements \ArrayAccess, \IteratorAggregate
      * Create new model from the same base class
      * as $this.
      *
-     * @param string $class
-     * @param array  $options
+     * @param string|Model $class
+     * @param array        $options
      *
      * @return Model
      */
@@ -1038,10 +1139,15 @@ class Model implements \ArrayAccess, \IteratorAggregate
     {
         if ($class === null) {
             $class = get_class($this);
+        } elseif ($class instanceof self) {
+            $class = get_class($class);
         }
-        $m = $this->persistence->add($class, $options);
 
-        return $m;
+        if (is_string($class) && $class[0] != '\\') {
+            $class = '\\'.$class;
+        }
+
+        return $this->persistence->add($class, $options);
     }
 
     /**
@@ -1083,12 +1189,14 @@ class Model implements \ArrayAccess, \IteratorAggregate
 
         $m = new $class($persistence);
 
-        if ($id === true) {
-            $m->id = $this->id;
-            $m[$m->id_field] = $this[$this->id_field];
-        } elseif ($id) {
-            $m->id = null; // record shouldn't exist yet
-            $m[$m->id_field] = $id;
+        if ($this->id_field) {
+            if ($id === true) {
+                $m->id = $this->id;
+                $m[$m->id_field] = $this[$this->id_field];
+            } elseif ($id) {
+                $m->id = null; // record shouldn't exist yet
+                $m[$m->id_field] = $id;
+            }
         }
 
         $m->data = $this->data;
@@ -1109,6 +1217,10 @@ class Model implements \ArrayAccess, \IteratorAggregate
     {
         if (!$this->persistence) {
             throw new Exception(['Model is not associated with any database']);
+        }
+
+        if (!$this->persistence->hasMethod('tryLoad')) {
+            throw new Exception('Persistence does not support tryLoad()');
         }
 
         if ($this->loaded()) {
@@ -1138,6 +1250,10 @@ class Model implements \ArrayAccess, \IteratorAggregate
     {
         if (!$this->persistence) {
             throw new Exception(['Model is not associated with any database']);
+        }
+
+        if (!$this->persistence->hasMethod('loadAny')) {
+            throw new Exception('Persistence does not support loadAny()');
         }
 
         if ($this->loaded()) {
@@ -1172,6 +1288,10 @@ class Model implements \ArrayAccess, \IteratorAggregate
             throw new Exception(['Model is not associated with any database']);
         }
 
+        if (!$this->persistence->hasMethod('tryLoadAny')) {
+            throw new Exception('Persistence does not support tryLoadAny()');
+        }
+
         if ($this->loaded()) {
             $this->unload();
         }
@@ -1179,7 +1299,9 @@ class Model implements \ArrayAccess, \IteratorAggregate
         $this->data = $this->persistence->tryLoadAny($this);
         if ($this->data) {
             if ($this->id_field) {
-                $this->id = $this->data[$this->id_field];
+                if (isset($this->data[$this->id_field])) {
+                    $this->id = $this->data[$this->id_field];
+                }
             }
 
             if ($this->hook('afterLoad') === false) {
@@ -1375,7 +1497,10 @@ class Model implements \ArrayAccess, \IteratorAggregate
         $m->reload_after_save = false;
         $m->unload();
         $m->save($row);
-        $m->data[$m->id_field] = $m->id;
+
+        if ($this->id_field) {
+            $m->data[$m->id_field] = $m->id;
+        }
     }
 
     /**
@@ -1418,13 +1543,88 @@ class Model implements \ArrayAccess, \IteratorAggregate
     /**
      * Export DataSet as array of hashes.
      *
-     * @param array|null $fields
+     * @param array|null $fields    Names of fields to export
+     * @param string     $key_field Optional name of field which value we will use as array key
      *
      * @return array
      */
-    public function export($fields = null)
+    public function export($fields = null, $key_field = null)
     {
-        return $this->persistence->export($this, $fields);
+        if (!$this->persistence->hasMethod('export')) {
+            throw new Exception('Persistence does not support export()');
+        }
+
+        // no key field - then just do export
+        if ($key_field === null) {
+            return $this->persistence->export($this, $fields);
+        }
+
+        // do we have added key field in fields list?
+        // if so, then will have to remove it afterwards
+        $key_field_added = false;
+
+        // prepare array with field names
+        if (!is_array($fields)) {
+            $fields = [];
+
+            if ($this->only_fields) {
+
+                // Add requested fields first
+                foreach ($this->only_fields as $field) {
+                    $f_object = $this->getElement($field);
+                    if ($f_object instanceof Field && $f_object->never_persist) {
+                        continue;
+                    }
+                    $fields[$field] = true;
+                }
+
+                // now add system fields, if they were not added
+                foreach ($this->elements as $field => $f_object) {
+                    if ($f_object instanceof Field) {
+                        if ($f_object->never_persist) {
+                            continue;
+                        }
+                        if ($f_object->system && !isset($fields[$field])) {
+                            $fields[$field] = true;
+                        }
+                    }
+                }
+
+                $fields = array_keys($fields);
+            } else {
+
+                // Add all model fields
+                foreach ($this->elements as $field => $f_object) {
+                    if ($f_object instanceof Field) {
+                        if ($f_object->never_persist) {
+                            continue;
+                        }
+                        $fields[] = $field;
+                    }
+                }
+            }
+        }
+
+        // add key_field to array if it's not there
+        if (!in_array($key_field, $fields)) {
+            $fields[] = $key_field;
+            $key_field_added = true;
+        }
+
+        // export
+        $data = $this->persistence->export($this, $fields);
+
+        // prepare resulting array
+        $return = [];
+        foreach ($data as $row) {
+            $key = $row[$key_field];
+            if ($key_field_added) {
+                unset($row[$key_field]);
+            }
+            $return[$key] = $row;
+        }
+
+        return $return;
     }
 
     /**
@@ -1434,7 +1634,7 @@ class Model implements \ArrayAccess, \IteratorAggregate
      */
     public function getIterator()
     {
-        foreach ($this->persistence->prepareIterator($this) as $data) {
+        foreach ($this->rawIterator() as $data) {
             $this->data = $this->persistence->typecastLoadRow($this, $data);
             if ($this->id_field) {
                 $this->id = isset($data[$this->id_field]) ? $data[$this->id_field] : null;
@@ -1446,7 +1646,11 @@ class Model implements \ArrayAccess, \IteratorAggregate
             //     if ($m['date'] < $m->date_from) $m->breakHook(false);
             // })
             if ($this->hook('afterLoad') !== false) {
-                yield $this->id => $this;
+                if ($this->id_field) {
+                    yield $this->id => $this;
+                } else {
+                    yield $this;
+                }
             }
         }
 
@@ -1558,6 +1762,10 @@ class Model implements \ArrayAccess, \IteratorAggregate
             throw new Exception(['action() requires model to be associated with db']);
         }
 
+        if (!$this->persistence->hasMethod('action')) {
+            throw new Exception('Persistence does not support action()');
+        }
+
         return $this->persistence->action($this, $mode, $args);
     }
 
@@ -1588,9 +1796,9 @@ class Model implements \ArrayAccess, \IteratorAggregate
 
         $defaults[0] = $foreign_table;
 
-        $c = $this->_default_class_join;
+        $c = $this->_default_seed_join;
 
-        return $this->add(new $c($defaults));
+        return $this->add($this->factory($c, $defaults));
     }
 
     /**
@@ -1637,7 +1845,19 @@ class Model implements \ArrayAccess, \IteratorAggregate
 
         $defaults[0] = $link;
 
-        return $this->add(new $c($defaults));
+        $obj = $this->factory($c, $defaults);
+
+        // if reference with such name already exists, then throw exception
+        if ($this->hasElement($name = $obj->getDesiredName())) {
+            throw new Exception([
+                'Reference with such name already exists',
+                'name'     => $name,
+                'link'     => $link,
+                'defaults' => $defaults,
+            ]);
+        }
+
+        return $this->add($obj);
     }
 
     /**
@@ -1664,7 +1884,7 @@ class Model implements \ArrayAccess, \IteratorAggregate
      */
     public function hasOne($link, $defaults = [])
     {
-        return $this->_hasReference($this->_default_class_hasOne, $link, $defaults);
+        return $this->_hasReference($this->_default_seed_hasOne, $link, $defaults);
     }
 
     /**
@@ -1677,7 +1897,7 @@ class Model implements \ArrayAccess, \IteratorAggregate
      */
     public function hasMany($link, $defaults = [])
     {
-        return $this->_hasReference($this->_default_class_hasMany, $link, $defaults);
+        return $this->_hasReference($this->_default_seed_hasMany, $link, $defaults);
     }
 
     /**
@@ -1781,9 +2001,23 @@ class Model implements \ArrayAccess, \IteratorAggregate
             unset($defaults[0]);
         }
 
-        $c = $this->_default_class_addExpression;
+        $c = $this->_default_seed_addExpression;
 
-        return $this->add(new $c($defaults), $name);
+        return $this->add($this->factory($c, $defaults), $name);
+    }
+
+    // }}}
+
+    // {{{ Misc methods
+
+    /**
+     * Last ID inserted.
+     *
+     * @return mixed
+     */
+    public function lastInsertID()
+    {
+        return $this->persistence->connection->lastInsertId($this);
     }
 
     // }}}

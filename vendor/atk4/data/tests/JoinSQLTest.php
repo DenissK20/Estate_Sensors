@@ -8,7 +8,7 @@ use atk4\data\Persistence_SQL;
 /**
  * @coversDefaultClass \atk4\data\Model
  */
-class JoinSQLTest extends SQLTestCase
+class JoinSQLTest extends \atk4\schema\PHPUnit_SchemaTestCase
 {
     public function testDirection()
     {
@@ -56,6 +56,10 @@ class JoinSQLTest extends SQLTestCase
 
     public function testJoinSaving1()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $a = [
             'user' => [
                 '_' => ['id' => 1, 'name' => 'John', 'contact_id' => 1],
@@ -157,6 +161,10 @@ class JoinSQLTest extends SQLTestCase
 
     public function testJoinSaving3()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $a = [
             'user' => [
                 '_' => ['id' => 1, 'name' => 'John', 'test_id' => 0],
@@ -222,6 +230,10 @@ class JoinSQLTest extends SQLTestCase
 
     public function testJoinUpdate()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $a = [
             'user' => [
                 1 => ['id' => 1, 'name' => 'John', 'contact_id' => 1],
@@ -379,6 +391,10 @@ class JoinSQLTest extends SQLTestCase
 
     public function testDoubleJoin()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $a = [
             'user' => [
                 10 => ['id' => 10, 'name' => 'John 2', 'contact_id' => 100],

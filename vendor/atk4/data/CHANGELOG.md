@@ -1,4 +1,145 @@
-# 1.2
+# 1.3.0
+
+Add support for Oracle and PostgreSQL, adding support for sequences and migrate to ATK Data 1.2.x
+
+**Fixed bugs:**
+
+- Tests of CSV persistence fail on Windows [\#271](https://github.com/atk4/data/issues/271)
+
+**Closed issues:**
+
+- Problem with oracle insert [\#280](https://github.com/atk4/data/issues/280)
+- Oracle dates not working properly [\#279](https://github.com/atk4/data/issues/279)
+- After latest composer update, warning is thrown in Persistence\_SQL-\>initQueryFields\(\) [\#274](https://github.com/atk4/data/issues/274)
+- \[epic\] Implement support for Oracle [\#270](https://github.com/atk4/data/issues/270)
+
+**Merged pull requests:**
+
+- Model Sequence, lastInserId and other fixes [\#285](https://github.com/atk4/data/pull/285) ([DarkSide666](https://github.com/DarkSide666))
+- Feature/dont supply null [\#284](https://github.com/atk4/data/pull/284) ([romaninsh](https://github.com/romaninsh))
+- Don't hardcode "id" - use owner model $id\_field property [\#278](https://github.com/atk4/data/pull/278) ([DarkSide666](https://github.com/DarkSide666))
+- Make model use AppScopeTrait thus inheriting $app property from the persistence [\#277](https://github.com/atk4/data/pull/277) ([romaninsh](https://github.com/romaninsh))
+- Fix initQueryFields \(274\) [\#275](https://github.com/atk4/data/pull/275) ([DarkSide666](https://github.com/DarkSide666))
+- Feature/spellcheck [\#273](https://github.com/atk4/data/pull/273) ([DarkSide666](https://github.com/DarkSide666))
+- Feature/oracle support [\#272](https://github.com/atk4/data/pull/272) ([DarkSide666](https://github.com/DarkSide666))
+
+## 1.3.1
+
+**Closed issues:**
+
+- Typecasting for id field [\#293](https://github.com/atk4/data/issues/293)
+- Should action\('xyz'\)-\>execute\(\) trigger hooks? [\#291](https://github.com/atk4/data/issues/291)
+
+**Merged pull requests:**
+
+- Feature/various improvements [\#297](https://github.com/atk4/data/pull/297) ([romaninsh](https://github.com/romaninsh))
+- use ValidationException [\#296](https://github.com/atk4/data/pull/296) ([DarkSide666](https://github.com/DarkSide666))
+- works better with namespaces [\#295](https://github.com/atk4/data/pull/295) ([romaninsh](https://github.com/romaninsh))
+- works better with namespaces [\#294](https://github.com/atk4/data/pull/294) ([romaninsh](https://github.com/romaninsh))
+- Travis db testing [\#292](https://github.com/atk4/data/pull/292) ([gartner](https://github.com/gartner))
+- Although we have added PostgreSQL, persistence does not recognize it [\#287](https://github.com/atk4/data/pull/287) ([romaninsh](https://github.com/romaninsh))
+- Allows static persistence to use empty array [\#286](https://github.com/atk4/data/pull/286) ([romaninsh](https://github.com/romaninsh))
+
+## 1.3.2
+
+**Implemented enhancements:**
+
+- add $caption, getModelCaption\(\) and getTitle\(\)  [\#290](https://github.com/atk4/data/issues/290)
+- Easier access to title of a current record [\#289](https://github.com/atk4/data/issues/289)
+
+**Closed issues:**
+
+- add travis testing for postgresql [\#288](https://github.com/atk4/data/issues/288)
+
+**Merged pull requests:**
+
+- Implement caption, getTitle, getModelCaption [\#299](https://github.com/atk4/data/pull/299) ([DarkSide666](https://github.com/DarkSide666))
+
+## 1.3.3
+
+**Fixed bugs:**
+
+- DSN without password [\#298](https://github.com/atk4/data/issues/298)
+- adding reference multiple times does not produce error [\#239](https://github.com/atk4/data/issues/239)
+- addTitle\(\) doesn't work for fields without \_id suffix [\#220](https://github.com/atk4/data/issues/220)
+- looks like misspelled -\>table [\#212](https://github.com/atk4/data/issues/212)
+
+**Closed issues:**
+
+- Model-\>export: using ID as first level array key? [\#311](https://github.com/atk4/data/issues/311)
+- Refactor to use SQLTestCase from atk4/core [\#258](https://github.com/atk4/data/issues/258)
+- Docs: There is wrong description and examples [\#204](https://github.com/atk4/data/issues/204)
+- action\('field'\) on expression should alias it to name of field. [\#190](https://github.com/atk4/data/issues/190)
+- Typecast use of 'actual' clashes with persistence-\>update\(\) [\#186](https://github.com/atk4/data/issues/186)
+
+**Merged pull requests:**
+
+- Implement export\(\) with field values used as array keys [\#313](https://github.com/atk4/data/pull/313) ([DarkSide666](https://github.com/DarkSide666))
+- Feature/add php callback field [\#310](https://github.com/atk4/data/pull/310) ([romaninsh](https://github.com/romaninsh))
+- fix some docs [\#309](https://github.com/atk4/data/pull/309) ([DarkSide666](https://github.com/DarkSide666))
+- Action field, fx and fx0 generate nice aliases [\#305](https://github.com/atk4/data/pull/305) ([DarkSide666](https://github.com/DarkSide666))
+- fix \#212 [\#304](https://github.com/atk4/data/pull/304) ([DarkSide666](https://github.com/DarkSide666))
+- fix \#239 [\#303](https://github.com/atk4/data/pull/303) ([DarkSide666](https://github.com/DarkSide666))
+- Fix addTitle\(\) [\#302](https://github.com/atk4/data/pull/302) ([DarkSide666](https://github.com/DarkSide666))
+- add driver property [\#301](https://github.com/atk4/data/pull/301) ([DarkSide666](https://github.com/DarkSide666))
+- use normalizeDSN\(\) [\#300](https://github.com/atk4/data/pull/300) ([DarkSide666](https://github.com/DarkSide666))
+
+## 1.3.4
+
+
+**Closed issues:**
+
+- Model with properties: when iterating over several loaded Items, changes to property are done on all Items [\#318](https://github.com/atk4/data/issues/318)
+
+**Merged pull requests:**
+
+- validate if methods exist in persistence before calling them [\#324](https://github.com/atk4/data/pull/324) ([DarkSide666](https://github.com/DarkSide666))
+- validate if persistence have action\(\) method [\#323](https://github.com/atk4/data/pull/323) ([DarkSide666](https://github.com/DarkSide666))
+- if it's array then it's treated as defaults. [\#322](https://github.com/atk4/data/pull/322) ([DarkSide666](https://github.com/DarkSide666))
+- Support LOB fields loading [\#321](https://github.com/atk4/data/pull/321) ([DarkSide666](https://github.com/DarkSide666))
+- fix newInstance\(\) [\#320](https://github.com/atk4/data/pull/320) ([DarkSide666](https://github.com/DarkSide666))
+
+
+## 1.3.5
+
+**Fixed bugs:**
+
+- REGRESSION: unable to aggregate aggregate fields [\#326](https://github.com/atk4/data/issues/326)
+
+**Merged pull requests:**
+
+- fix \#326 [\#327](https://github.com/atk4/data/pull/327) ([romaninsh](https://github.com/romaninsh))
+
+## 1.3.6
+
+This release adds some great improvements to the aggregate fields. The most notable change is that
+you no longer need to specify 'field' for 'count' aggregation, it has been a thorn:
+
+``` php
+$this->hasMany('Invoices', new Invoice())->addField('invoice_count', ['aggregate'=>'count']);
+```
+
+Now the alternative syntax is available, where you can just define your expression explicitly:
+
+```
+$this->hasMany('Items', new Item())->addField('list', ['expr'=>'group_concat([name] separator "+")']);
+```
+
+**Closed issues:**
+
+- Documentation atk4/data not meet atk/data-primer repository [\#328](https://github.com/atk4/data/issues/328)
+
+**Merged pull requests:**
+
+- fix doc typo [\#332](https://github.com/atk4/data/pull/332) ([DarkSide666](https://github.com/DarkSide666))
+- remove method guessFieldType - it was disabled for some time now [\#331](https://github.com/atk4/data/pull/331) ([romaninsh](https://github.com/romaninsh))
+- Significantly improve flexibility of aggregates [\#330](https://github.com/atk4/data/pull/330) ([romaninsh](https://github.com/romaninsh))
+
+## 1.3.7
+
+Minor release. Calling `addCondition('age', '>', 30)` will no longer mark field `age` as system.
+
+# 1.2.0
 
 When upgrading to 1.2.x branch watch out if your "Model" has a validate() method. The
 database connection will now use "utf8" so if you used non-utf8 before you might need
@@ -24,6 +165,45 @@ For more info see #244
 - Improved [documentation for $mandatory and $required](http://agile-data.readthedocs.io/en/develop/fields.html#Field::$mandatory) #233
 - Added [documentation for Hooks](http://agile-data.readthedocs.io/en/develop/hooks.html) #238
 - Fix Persistence_Array usage without table #245 #246
+
+## 1.2.2
+
+Agile Data was created some time ago, before factory() implementation was completed in Agile Core. At
+that time we had to make a decision how to better set the default class for the field, so we used
+propreties such as `_default_class_addField`. Now that Agile Core allows us to specify `Seed`, we
+have refactored some of that internal functionality to rely on factory(). This should not impact
+your applications unless you are using custom persistence. #261
+
+Additional fixes:
+
+- Persistence to hold Model Prefix #152
+- adding addTitle() now hides 'id' field #252 #253
+- refLink() to pass $defaults #254
+- couldn't connect to sqlite due to ;charset postfix in DSN #256 #257
+- improve iterating models without id field #260
+
+
+## 1.2.3
+
+This version focuses on enabling you to define your own Field classes, such as more advanced Password
+handling field. See example: https://github.com/atk4/login/blob/master/src/Field/Password.php
+
+Introduced new way to verify field values with `$model->compare('age', 20);` which returs boolean. Also
+in addition to `enum` property, you can use `values` property with a field now.
+
+Rewrote Overview section of documentation and added new information on Fields and Static Persistence.
+
+ - Added `Persistence_Static` #265
+ - Implemented `$field->values` property #266
+ - Added `Field->compare()` and `Model->compare()`
+ - Improved support for user-defined fields (nee `Field\Password` from https://github.com/atk4/login) #259
+ - Allow to specify join kind
+ - Allow fields extended from `Field` class to be loaded from SQL #269
+ - Started official support of 7.2.
+ - Fixed typecasting when using Array persistence
+ - Extra docs on: Fields, Static Persistence
+ - Docs rewrite of Overiew section.
+ 
 
 ## 1.1
 

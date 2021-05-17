@@ -66,7 +66,7 @@ class Model_Item3 extends \atk4\data\Model
 /**
  * @coversDefaultClass \atk4\data\Model
  */
-class RandomSQLTests extends SQLTestCase
+class RandomSQLTests extends \atk4\schema\PHPUnit_SchemaTestCase
 {
     public function testRate()
     {
@@ -110,6 +110,10 @@ class RandomSQLTests extends SQLTestCase
 
     public function testAddFields()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $a = [
             'user' => [
                 1 => ['name' => 'John', 'login' => 'john@example.com'],
@@ -133,6 +137,10 @@ class RandomSQLTests extends SQLTestCase
 
     public function testSameTable()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $db = new Persistence_SQL($this->db->connection);
         $a = [
             'item' => [
@@ -152,6 +160,10 @@ class RandomSQLTests extends SQLTestCase
 
     public function testSameTable2()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $db = new Persistence_SQL($this->db->connection);
         $a = [
             'item' => [
@@ -177,6 +189,10 @@ class RandomSQLTests extends SQLTestCase
 
     public function testSameTable3()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $db = new Persistence_SQL($this->db->connection);
         $a = [
             'item' => [
@@ -290,12 +306,176 @@ class RandomSQLTests extends SQLTestCase
         $m->delete();
     }
 
+    /**
+     * @expectedException Exception
+     */
+    public function testIssue220()
+    {
+        $db = new Persistence_SQL($this->db->connection);
+        $m = new Model_Item($db);
+
+        $m->hasOne('foo', '\atk4\data\tests\Model_Item')
+            ->addTitle(); // field foo already exists, so we can't add title with same name
+    }
+
     public function testIssue163()
     {
         $db = new Persistence_SQL($this->db->connection);
         $m = new Model_Item($db);
 
-        $m->hasOne('Person', 'atk4/data/tests/Model_Person');
+        $m->hasOne('Person', 'atk4/data/tests/Model/Person');
         $person = $m->ref('Person');
+    }
+
+    public function testNonSQLFieldClass()
+    {
+        $db = new Persistence_SQL($this->db->connection);
+        $a = [
+            'rate' => [
+                ['dat' => '18/12/12', 'bid' => 3.4, 'ask' => 9.4, 'x1'=>'y1', 'x2'=>'y2'],
+            ],
+        ];
+        $this->setDB($a);
+
+        $m = new Model_Rate($db);
+        $m->addField('x1', new \atk4\data\Field_SQL());
+        $m->addField('x2', new \atk4\data\Field());
+        $m->load(1);
+
+        $this->assertEquals(3.4, $m['bid']);
+        $this->assertEquals('y1', $m['x1']);
+        $this->assertEquals('y2', $m['x2']);
+    }
+
+    public function testCaption()
+    {
+        $db = new Persistence_SQL($this->db->connection);
+        $m = new Model($db, 'user');
+
+        // caption is not set, so generate it from class name \atk4\data\Model
+        $this->assertEquals('Atk4 Data Model', $m->getModelCaption());
+
+        // caption is set
+        $m->caption = 'test';
+        $this->assertEquals('test', $m->getModelCaption());
+    }
+
+    public function testGetTitle()
+    {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
+        $db = new Persistence_SQL($this->db->connection);
+        $a = [
+            'item' => [
+                1 => ['id' => 1, 'name' => 'John', 'parent_item_id' => '1'],
+                2 => ['id' => 2, 'name' => 'Sue', 'parent_item_id' => '1'],
+            ], ];
+        $this->setDB($a);
+
+        $m = new Model_Item($db, 'item');
+
+        // default title_field = name
+        $this->assertEquals(null, $m->getTitle()); // not loaded model returns null
+
+        $m->load(2);
+        $this->assertEquals('Sue', $m->getTitle()); // loaded returns title_field value
+
+        // set custom title_field
+        $m->title_field = 'parent_item_id';
+        $this->assertEquals(1, $m->getTitle()); // returns parent_item_id value
+
+        // set custom title_field as title_field from linked model
+        $m->title_field = 'parent_item';
+        $this->assertEquals('John', $m->getTitle()); // returns parent record title_field
+
+        // no title_field set - return id value
+        $m->title_field = null;
+        $this->assertEquals(2, $m->getTitle()); // loaded returns id value
+
+        // expression as title field
+        $m->addExpression('my_name', '[id]');
+        $m->title_field = 'my_name';
+        $m->load(2);
+        $this->assertEquals(2, $m->getTitle()); // loaded returns id value
+    }
+
+    /**
+     * Test export.
+     */
+    public function testExport()
+    {
+        $a = [
+            'user' => [
+                2 => ['code' => 10, 'name' => 'John'],
+                5 => ['code' => 20, 'name' => 'Sarah'],
+            ], ];
+        $this->setDB($a);
+
+        // model without id field
+        $m1 = new Model($this->db, ['table'=>'user', 'id_field'=>false]);
+        $m1->addField('code');
+        $m1->addField('name');
+
+        // model with id field
+        $m2 = new Model($this->db, 'user');
+        $m2->addField('code');
+        $m2->addField('name');
+
+        // normal export
+        $this->assertEquals([
+            0 => ['code' => 10, 'name' => 'John'],
+            1 => ['code' => 20, 'name' => 'Sarah'],
+        ], $m1->export());
+
+        $this->assertEquals([
+            0 => ['id' => 2, 'code' => 10, 'name' => 'John'],
+            1 => ['id' => 5, 'code' => 20, 'name' => 'Sarah'],
+        ], $m2->export());
+
+        // export fields explicitly set
+        $this->assertEquals([
+            0 => ['name' => 'John'],
+            1 => ['name' => 'Sarah'],
+        ], $m1->export(['name']));
+
+        $this->assertEquals([
+            0 => ['name' => 'John'],
+            1 => ['name' => 'Sarah'],
+        ], $m2->export(['name']));
+
+        // key field explicitly set
+        $this->assertEquals([
+            10 => ['code' => 10, 'name' => 'John'],
+            20 => ['code' => 20, 'name' => 'Sarah'],
+        ], $m1->export(null, 'code'));
+
+        $this->assertEquals([
+            10 => ['id' => 2, 'code' => 10, 'name' => 'John'],
+            20 => ['id' => 5, 'code' => 20, 'name' => 'Sarah'],
+        ], $m2->export(null, 'code'));
+
+        // field names and key field explicitly set
+        $this->assertEquals([
+            10 => ['name' => 'John'],
+            20 => ['name' => 'Sarah'],
+        ], $m1->export(['name'], 'code'));
+
+        $this->assertEquals([
+            10 => ['name' => 'John'],
+            20 => ['name' => 'Sarah'],
+        ], $m2->export(['name'], 'code'));
+
+        // field names include key field
+        $this->assertEquals([
+            10 => ['code' => 10, 'name' => 'John'],
+            20 => ['code' => 20, 'name' => 'Sarah'],
+        ], $m1->export(['code', 'name'], 'code'));
+
+        $this->assertEquals([
+            10 => ['code' => 10, 'name' => 'John'],
+            20 => ['code' => 20, 'name' => 'Sarah'],
+        ], $m2->export(['code', 'name'], 'code'));
     }
 }

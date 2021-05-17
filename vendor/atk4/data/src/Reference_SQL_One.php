@@ -30,6 +30,7 @@ class Reference_SQL_One extends Reference_One
                 ]);
             }
             $field = $defaults[0];
+            unset($defaults[0]);
         } else {
             $defaults = [];
         }
@@ -40,7 +41,9 @@ class Reference_SQL_One extends Reference_One
 
         $e = $this->owner->addExpression($field, array_merge([
             function ($m) use ($their_field) {
-                return $m->refLink($this->link)->action('field', [$their_field]);
+                // remove order if we just select one field from hasOne model
+                // that is mandatory for Oracle
+                return $m->refLink($this->link)->action('field', [$their_field])->reset('order');
             }, ],
             $defaults
         ));
@@ -95,11 +98,14 @@ class Reference_SQL_One extends Reference_One
     /**
      * Creates model that can be used for generating sub-query actions.
      *
+     * @param array $defaults Properties
+     *
      * @return Model
      */
-    public function refLink()
+    public function refLink($defaults = [])
     {
-        $m = $this->getModel();
+        $m = $this->getModel($defaults);
+
         $m->addCondition(
             $this->their_field ?: ($m->id_field),
             $this->referenceOurValue($m)
@@ -108,6 +114,13 @@ class Reference_SQL_One extends Reference_One
         return $m;
     }
 
+    /**
+     * Navigate to referenced model.
+     *
+     * @param array $defaults Properties
+     *
+     * @return Model
+     */
     public function ref($defaults = [])
     {
         $m = parent::ref($defaults);
@@ -143,20 +156,31 @@ class Reference_SQL_One extends Reference_One
                 'arg' => $defaults,
             ]);
         }
-        $field = isset($defaults['field']) ? $defaults['field'] : str_replace('_id', '', $this->link);
+
+        $field = isset($defaults['field'])
+                    ? $defaults['field']
+                    : preg_replace('/_'.($this->owner->id_field ?: 'id').'$/i', '', $this->link);
+
+        if ($this->owner->hasElement($field)) {
+            throw new Exception([
+                'Field with this name already exists. Please set title field name manually addTitle([\'field\'=>\'field_name\'])',
+                'field' => $field,
+            ]);
+        }
+
         $ex = $this->owner->addExpression($field, array_merge_recursive(
             [
                 function ($m) {
                     $mm = $m->refLink($this->link);
 
-                    return $mm->action('field', [$mm->title_field]);
+                    return $mm->action('field', [$mm->title_field])->reset('order');
                 },
                 'type' => null,
                 'ui'   => ['editable' => false, 'visible' => true],
             ],
             $defaults,
             [
-                // to be able to change title field, but not save and
+                // to be able to change title field, but not save it
                 // afterSave hook will take care of the rest
                 'read_only'  => false,
                 'never_save' => true,
@@ -172,6 +196,11 @@ class Reference_SQL_One extends Reference_One
                 $m[$this->link] = $mm->action('field', [$mm->id_field]);
             }
         }, null, 20);
+
+        // Set ID field as not visible in grid by default
+        if (!isset($this->owner->getElement($this->our_field)->ui['visible'])) {
+            $this->owner->getElement($this->our_field)->ui['visible'] = false;
+        }
 
         return $ex;
     }

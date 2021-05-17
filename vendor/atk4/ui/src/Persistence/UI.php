@@ -22,7 +22,15 @@ class UI extends \atk4\data\Persistence
     public $time_format = 'H:i';
 
     public $datetime_format = 'M d, Y H:i:s';
-        // 'D, d M Y H:i:s O';
+    // 'D, d M Y H:i:s O';
+
+    /**
+     * Calendar input first day of week.
+     *  0 = sunday;.
+     *
+     * @var int
+     */
+    public $firstDayOfWeek = 0;
 
     public $currency = '€';
 
@@ -31,6 +39,11 @@ class UI extends \atk4\data\Persistence
      */
     public function _typecastSaveField(\atk4\data\Field $f, $value)
     {
+        // serialize if we explicitly want that
+        if ($f->serialize) {
+            $value = $this->serializeSaveField($f, $value);
+        }
+
         // work only on copied value not real one !!!
         $v = is_object($value) ? clone $value : $value;
 
@@ -71,6 +84,21 @@ class UI extends \atk4\data\Persistence
      */
     public function _typecastLoadField(\atk4\data\Field $f, $value)
     {
+        // serialize if we explicitly want that
+        if ($f->serialize && $value) {
+            try {
+                $new_value = $this->serializeLoadField($f, $value);
+            } catch (\Exception $e) {
+                throw new Exception([
+                    'Value must be '.$f->serialize,
+                    'serializator'=> $f->serialize,
+                    'value'       => $value,
+                    'field'       => $f,
+                ]);
+            }
+            $value = $new_value;
+        }
+
         switch ($f->type) {
         case 'string':
         case 'text':
@@ -114,7 +142,7 @@ class UI extends \atk4\data\Persistence
         }
 
         if (isset($f->reference)) {
-            if ($value === '') {
+            if (empty($value)) {
                 $value = null;
             }
         }

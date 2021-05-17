@@ -25,7 +25,7 @@ class Reference_Many extends Reference
             return $this->owner->action(
                 'field',
                 [
-                    $this->our_field ?: $this->owner->id_field,
+                    $this->our_field ?: ($this->owner->id_field ?: 'id'),
                 ]
             );
         }
@@ -40,7 +40,7 @@ class Reference_Many extends Reference
     {
         $this->owner->persistence_data['use_table_prefixes'] = true;
 
-        return $this->owner->getElement($this->our_field ?: $this->owner->id_field);
+        return $this->owner->getElement($this->our_field ?: ($this->owner->id_field ?: 'id'));
     }
 
     /**
@@ -54,7 +54,7 @@ class Reference_Many extends Reference
     {
         return $this->getModel($defaults)
             ->addCondition(
-                $this->their_field ?: ($this->owner->table.'_id'),
+                $this->their_field ?: ($this->owner->table.'_'.($this->owner->id_field ?: 'id')),
                 $this->getOurValue()
             );
     }
@@ -70,7 +70,7 @@ class Reference_Many extends Reference
     {
         return $this->getModel($defaults)
             ->addCondition(
-                $this->their_field ?: ($this->owner->table.'_id'),
+                $this->their_field ?: ($this->owner->table.'_'.($this->owner->id_field ?: 'id')),
                 $this->referenceOurValue()
             );
     }
@@ -86,28 +86,46 @@ class Reference_Many extends Reference
      */
     public function addField($n, $defaults = [])
     {
-        if (!isset($defaults['aggregate'])) {
+        if (!isset($defaults['aggregate']) && !isset($defaults['expr'])) {
             throw new Exception([
-                '"aggregate" strategy should be defined for oneToMany field',
+                '"aggregate" strategy (or "expr") should be defined for oneToMany field',
                 'field'    => $n,
                 'defaults' => $defaults,
             ]);
         }
 
-        $field = isset($defaults['field']) ? $defaults['field'] : $n;
+        $field_n = isset($defaults['field']) ? $defaults['field'] : $n;
+        $field = isset($defaults['field']) ? $defaults['field'] : null;
 
-        $e = $this->owner->addExpression($n, array_merge([
-            function () use ($defaults, $field) {
-                return $this->refLink()->action('fx0', [$defaults['aggregate'], $field]);
-            }, ],
-            $defaults
-        ));
+        if (isset($defaults['expr'])) {
+            $cb = function () use ($defaults, $field) {
+                $r = $this->refLink();
 
-        if (isset($defaults['type'])) {
-            $e->type = $defaults['type'];
+                return $r->action('field', [$r->expr(
+                    $defaults['expr'],
+                    isset($defaults['args']) ? $defaults['args'] : null
+                ), 'alias'=>$field]);
+            };
+            unset($defaults['args']);
+        } elseif (is_object($defaults['aggregate'])) {
+            $cb = function () use ($defaults, $field) {
+                return $this->refLink()->action('field', [$defaults['aggregate'], 'alias'=>$field]);
+            };
+        } elseif ($defaults['aggregate'] == 'count' && !isset($defaults['field'])) {
+            $cb = function () use ($defaults, $field) {
+                return $this->refLink()->action('count', ['alias'=>$field]);
+            };
+        } elseif (in_array($defaults['aggregate'], ['sum', 'avg', 'min', 'max', 'count'])) {
+            $cb = function () use ($defaults, $field_n) {
+                return $this->refLink()->action('fx0', [$defaults['aggregate'], $field_n]);
+            };
         } else {
-            $e->type = $this->guessFieldType($field);
+            $cb = function () use ($defaults, $field_n) {
+                return $this->refLink()->action('fx', [$defaults['aggregate'], $field_n]);
+            };
         }
+
+        $e = $this->owner->addExpression($n, array_merge([$cb], $defaults));
 
         return $e;
     }

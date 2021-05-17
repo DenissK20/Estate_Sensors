@@ -42,27 +42,21 @@ trait DIContainerTrait
      * developer to pass Dependency Injector Container.
      *
      * @param array $properties
+     * @param bool  $passively  if true, existing non-null argument values will be kept
      */
-    public function setDefaults($properties = [])
+    public function setDefaults($properties = [], $passively = false)
     {
         if ($properties === null) {
             $properties = [];
         }
 
         foreach ($properties as $key => $val) {
-            if (is_numeric($key)) {
-                throw new Exception([
-                    'Numeric property names are not allowed',
-                    'object'  => $this,
-                    'property'=> $key,
-                    'value'   => $val,
-                ]);
-            }
+            if (!is_numeric($key) && property_exists($this, $key)) {
+                if ($passively && $this->$key !== null) {
+                    continue;
+                }
 
-            if (property_exists($this, $key)) {
-                if (is_array($val)) {
-                    $this->$key = array_merge(isset($this->$key) && is_array($this->$key) ? $this->$key : [], $val);
-                } elseif ($val !== null) {
+                if ($val !== null) {
                     $this->$key = $val;
                 }
             } else {
@@ -81,6 +75,11 @@ trait DIContainerTrait
      */
     protected function setMissingProperty($key, $value)
     {
+        // ignore numeric properties by default
+        if (is_numeric($key)) {
+            return;
+        }
+
         throw new Exception([
             'Property for specified object is not defined',
             'object'  => $this,

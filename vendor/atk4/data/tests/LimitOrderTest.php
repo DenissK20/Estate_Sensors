@@ -3,12 +3,11 @@
 namespace atk4\data\tests;
 
 use atk4\data\Model;
-use atk4\data\Persistence_SQL;
 
 /**
  * @coversDefaultClass \atk4\data\Model
  */
-class LimitOrderTest extends SQLTestCase
+class LimitOrderTest extends \atk4\schema\PHPUnit_SchemaTestCase
 {
     public function testBasic()
     {
@@ -20,8 +19,7 @@ class LimitOrderTest extends SQLTestCase
             ], ];
         $this->setDB($a);
 
-        $db = new Persistence_SQL($this->db->connection);
-        $i = (new Model($db, 'invoice'))->addFields(['total_net', 'total_vat']);
+        $i = (new Model($this->db, 'invoice'))->addFields(['total_net', 'total_vat']);
         $i->addExpression('total_gross', '[total_net]+[total_vat]');
         $i->getElement('id')->system = false;
 
@@ -44,8 +42,7 @@ class LimitOrderTest extends SQLTestCase
             ], ];
         $this->setDB($a);
 
-        $db = new Persistence_SQL($this->db->connection);
-        $ii = (new Model($db, 'invoice'))->addFields(['total_net', 'total_vat']);
+        $ii = (new Model($this->db, 'invoice'))->addFields(['total_net', 'total_vat']);
         $ii->addExpression('total_gross', '[total_net]+[total_vat]');
         $ii->getElement('id')->system = false;
 
@@ -95,8 +92,7 @@ class LimitOrderTest extends SQLTestCase
             ], ];
         $this->setDB($a);
 
-        $db = new Persistence_SQL($this->db->connection);
-        $i = (new Model($db, 'invoice'))->addFields(['total_net', 'total_vat']);
+        $i = (new Model($this->db, 'invoice'))->addFields(['total_net', 'total_vat']);
         $i->addExpression('total_gross', '[total_net]+[total_vat]');
         $i->getElement('id')->system = false;
 
@@ -128,12 +124,12 @@ class LimitOrderTest extends SQLTestCase
         /*
         This test is incorrect because last number in rendered query is dependant on server.
         For example, on Imants Win10 64-bit this renders as:
-        select `total_net` from `invoice` order by `total_net` limit 1, 2147483647
+        select "total_net" from "invoice" order by "total_net" limit 1, 2147483647
         On Travis server it renders as:
-        select `total_net` from `invoice` order by `total_net` limit 1, 9223372036854775807
+        select "total_net" from "invoice" order by "total_net" limit 1, 9223372036854775807
         which still is not equal to max number which SQL server allows - 18446744073709551615
         $this->assertEquals(
-            'select `total_net` from `invoice` order by `total_net` limit 1, 9223372036854775807',
+            'select "total_net" from "invoice" order by "total_net" limit 1, 9223372036854775807',
             $i->action('select')->render()
         );
         */

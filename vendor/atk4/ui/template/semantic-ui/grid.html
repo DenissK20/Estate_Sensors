@@ -1,4 +1,10 @@
-<{_element}div{/} id="{$_id}" class="{_ui}ui{/} {$class} {_class}{/}" style="{$style}" {$attributes}>
-{$Menu}
+
+<{_element}div{/} id="{$_id}" class="{_ui}ui{/} {$class} {_class}{/}" style="{$style}" {$attributes}>{$Menu}
 {$Content}
-<div class="ui table atk-overflow-auto">{$Table}</div>{$Paginator}</{_element}div{/}>
+{Container}
+<div class="ui vertical segment" id="{$_id}">
+  <div class="ui atk-overflow-auto">
+    {$Table}
+    {$Content}
+  </div>{$Paginator}
+</div>{/Container}</{_element}div{/}>

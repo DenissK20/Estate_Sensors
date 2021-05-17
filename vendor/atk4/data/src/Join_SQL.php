@@ -10,15 +10,6 @@ namespace atk4\data;
 class Join_SQL extends Join implements \atk4\dsql\Expressionable
 {
     /**
-     * By default this will be either "inner" (for strong) or "left" for weak joins.
-     * You can specify your own type of join by passing ['kind'=>'right']
-     * as second argument to join().
-     *
-     * @var string
-     */
-    protected $kind;
-
-    /**
      * By default we create ON expression ourselves, but if you want to specify
      * it, use the 'on' property.
      *
@@ -45,7 +36,18 @@ class Join_SQL extends Join implements \atk4\dsql\Expressionable
      */
     public function getDSQLExpression($q)
     {
+        /*
+        // If our Model has expr() method (inherited from Persistence_SQL) then use it
+        if ($this->owner->hasMethod('expr')) {
+            return $this->owner->expr('{}.{}', [$this->foreign_alias, $this->foreign_field]);
+        }
+
+        // Otherwise call it from expression itself
         return $q->expr('{}.{}', [$this->foreign_alias, $this->foreign_field]);
+        */
+
+        // Romans: join_sql shouldn't even be called if expr is undefined. I think we should leave it here to produce error.
+        return $this->owner->expr('{}.{}', [$this->foreign_alias, $this->foreign_field]);
     }
 
     /**
@@ -127,7 +129,7 @@ class Join_SQL extends Join implements \atk4\dsql\Expressionable
         if ($this->on) {
             $query->join(
                 $this->foreign_table.' '.$this->foreign_alias,
-                $this->on instanceof \atk4\dsql\Expression ? $this->on : $query->expr($this->on),
+                $this->on instanceof \atk4\dsql\Expression ? $this->on : $model->expr($this->on),
                 $this->kind
             );
 
@@ -136,7 +138,7 @@ class Join_SQL extends Join implements \atk4\dsql\Expressionable
 
         $query->join(
             $this->foreign_table.(isset($this->foreign_alias) ? (' '.$this->foreign_alias) : ''),
-            $query->expr('{}.{} = {}', [
+            $model->expr('{}.{} = {}', [
                 (isset($this->foreign_alias) ? $this->foreign_alias : $this->foreign_table),
                 $this->foreign_field,
                 $this->owner->getElement($this->master_field),
@@ -194,7 +196,7 @@ class Join_SQL extends Join implements \atk4\dsql\Expressionable
         $this->save_buffer = [];
         $insert->set($this->foreign_field, null);
         $insert->insert();
-        $this->id = $insert->connection->lastInsertID();
+        $this->id = $this->owner->lastInsertID();
 
         if ($this->join) {
             $this->join->set($this->master_field, $this->id);
@@ -224,7 +226,7 @@ class Join_SQL extends Join implements \atk4\dsql\Expressionable
                 isset($this->join) ? $this->join->id : $id
             );
         $insert->insert();
-        $this->id = $insert->connection->lastInsertID();
+        $this->id = $this->owner->lastInsertID();
     }
 
     /**

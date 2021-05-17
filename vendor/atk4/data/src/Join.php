@@ -4,6 +4,7 @@
 
 namespace atk4\data;
 
+use atk4\core\DIContainerTrait;
 use atk4\core\InitializerTrait;
 use atk4\core\TrackableTrait;
 
@@ -16,6 +17,7 @@ class Join
     use InitializerTrait {
         init as _init;
     }
+    use DIContainerTrait;
 
     /**
      * Name of the table (or collection) that can be used to retrieve data from.
@@ -49,6 +51,15 @@ class Join
      * @var string
      */
     protected $id_field = 'id';
+
+    /**
+     * By default this will be either "inner" (for strong) or "left" for weak joins.
+     * You can specify your own type of join by passing ['kind'=>'right']
+     * as second argument to join().
+     *
+     * @var string
+     */
+    protected $kind;
 
     /**
      * Is our join weak? Weak join will stop you from touching foreign table.
@@ -124,15 +135,10 @@ class Join
      *
      * @param array $defaults
      */
-    public function __construct($defaults = [])
+    public function __construct($foreign_table = null)
     {
-        if (isset($defaults[0])) {
-            $this->foreign_table = $defaults[0];
-            unset($defaults[0]);
-        }
-
-        foreach ($defaults as $key => $val) {
-            $this->$key = $val;
+        if (isset($foreign_table)) {
+            $this->foreign_table = $foreign_table;
         }
     }
 
@@ -187,12 +193,13 @@ class Join
             }
         } else {
             $this->reverse = false;
+            $id_field = $this->owner->id_field ?: 'id';
             if (!$this->master_field) {
-                $this->master_field = $this->foreign_table.'_id';
+                $this->master_field = $this->foreign_table.'_'.$id_field;
             }
 
             if (!$this->foreign_field) {
-                $this->foreign_field = 'id';
+                $this->foreign_field = $id_field;
             }
         }
 
@@ -339,7 +346,7 @@ class Join
     {
         $defaults = array_merge([
             'our_field'   => $this->id_field,
-            'their_field' => $this->table.'_id',
+            'their_field' => $this->table.'_'.$this->id_field,
         ], $defaults);
 
         return parent::hasMany($model, $defaults);

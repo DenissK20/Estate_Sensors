@@ -1,18 +1,23 @@
-# Agile Data
+# Data Access PHP framework for High-Latency databases
 
-[![Gitter](https://img.shields.io/gitter/room/atk4/data.svg?maxAge=2592000)](https://gitter.im/atk4/dataset?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Documentation Status](https://readthedocs.org/projects/agile-data/badge/?version=latest)](http://agile-data.readthedocs.io/)
-![License](https://poser.pugx.org/atk4/dsql/license)
-[![GitHub release](https://img.shields.io/badge/release-1.1.9-brightgreen.png?style=default)](CHANGELOG.md)
+The reason you hate Object Relational Mapper (ORM) is because it's [slow, clumsy, limited and flawed](https://medium.com/@romaninsh/pragmatic-approach-to-reinventing-orm-d9e1bdc336e3). The reason you *have to* use it is because of consistency, compatibility and abstraction it offers to larger projects.
+
+**ATK Data provides a PHP framework, an alternative to ORM, which comes with [same and more features](https://socialcompare.com/en/comparison/php-data-access-libraries-orm-activerecord-persistence) without inheriting any design flaws of ORM pattern.**
+
+ATK Data is focused on reducing number of database queries, moving CPU-intensive tasks into your database (if possible). It is well suited for Amazon RDS, Google Cloud SQL and ClearDB but thanks to abstraction will work transparently with Static data, NoSQL or RestAPIs backends.
+
+ATK Data is extensible and offers wide range of add-ons ranging from [Audit](https://github.com/atk4/audit) and [Aggregation](https://github.com/atk4/report) all the way to [Web UI](https://github.com/atk4/ui) and [RestAPI](https://github.com/atk4/api). Minimalistic interface allows you to use ATK Data in your legacy apps or with modern PHP frameworks.
+
 [![Build Status](https://travis-ci.org/atk4/data.png?branch=develop)](https://travis-ci.org/atk4/data)
 [![Code Climate](https://codeclimate.com/github/atk4/data/badges/gpa.svg)](https://codeclimate.com/github/atk4/data)
 [![Test Coverage](https://codeclimate.com/github/atk4/data/badges/coverage.svg)](https://codeclimate.com/github/atk4/data/coverage)
-[![codecov](https://codecov.io/gh/atk4/data/branch/develop/graph/badge.svg)](https://codecov.io/gh/atk4/data)
+[![codecov](https://codecov.io/gh/atk4/data/branch/develop/graph/badge.svg)](https://codecov.io/gh/atk4/data)[![GitHub release](https://img.shields.io/github/release/atk4/data.svg)](CHANGELOG.md)
 
+Quick-Links: [Documentation](http://agile-data.readthedocs.io). [Namespaces](http://www.agiletoolkit.org/dox/namespaces.html). [Example](https://github.com/atk4/data-primer). [ATK Data](https://github.com/atk4/ui). [Forum](https://forum.agiletoolkit.org/). [Chat](https://gitter.im/atk4/atk4). [Commercial support](https://www.agiletoolkit.org/contact). [Udemy Course](https://forum.agiletoolkit.org/t/udemy-com-atk-course-early-access-limited-time-free/413).
 
-**Data Access Framework for high-latency databases (Cloud SQL/NoSQL).**
+### Benefits of using ATK Data (former Agile Data)
 
-Designed for medium to large PHP applications and frameworks, Agile Data is a clean implementation of Data Mapper that will:
+Designed for medium to large PHP applications and frameworks, ATK Data is a clean implementation of Data Mapper that will:
 
 -   Make your application really database-agnostic. SQL? NoSQL? RestAPI? Cache? Load and store your data with any of these, without refactoring your code.
 -   Execute more on the server. Agile Data converts query logic into server-specific language (e.g. SQL) then delivers you the exact data rows / columns which you need from a single statement, no matter how complex.
@@ -24,20 +29,14 @@ Designed for medium to large PHP applications and frameworks, Agile Data is a cl
 
 Since the initial introduction of Agile Data back in [2016](https://www.reddit.com/r/PHP/comments/5ftpxg/thank_you_reddit_you_helped_me_create_something/) our group of early-adopters used it in large production PHP projects. **It is time for you to try Agile Data today**.
 
-## [Quick Start](http://agile-data.readthedocs.io/en/develop/quickstart.html) or [Screencasts](https://www.youtube.com/watch?v=o16xwkFfnuA&t=182s&index=1&list=PLUUKFD-IBZWaaN_CnQuSP0iwWeHJxPXKS)
+### Getting Started
 
-Our documentation has a "Quickstart" section which will take you step-by-step and introduce you to the core concepts.
+Watch [Quick Start](http://agile-data.readthedocs.io/en/develop/quickstart.html) or [Screencasts](https://www.youtube.com/watch?v=o16xwkFfnuA&t=182s&index=1&list=PLUUKFD-IBZWaaN_CnQuSP0iwWeHJxPXKS). There is also our [Official Udemy Course](https://forum.agiletoolkit.org/t/udemy-com-atk-course-early-access-limited-time-free/413) and [Full Documentation](http://agile-data.readthedocs.io) ([PDF](https://media.readthedocs.org/pdf/agile-data/develop/agile-data.pdf)). 
 
-Alternatively you can watch hands-on screencasts on our Youtube.
-
-**WARNING** - Agile Data has a different architecture to other PHP ORMs, so even if you are fluent with Doctrine or Yii ORM, you should review the core principles.
-
-## [Full Documentation](http://agile-data.readthedocs.io/)
-
-If you like you can also grab 100+ pages of [documentation in PDF format](https://media.readthedocs.org/pdf/agile-data/develop/agile-data.pdf). This does not include the UI or Core documentations which you can find here:
+ATK Data relies on ATK Core and ATK UI:
 
 -   [Agile Core](http://agile-core.readthedocs.io/en/develop/) - documents various low-level traits and features such as Containers, Hooks or Exceptions ([PDF](https://media.readthedocs.org/pdf/agile-core/develop/agile-core.pdf))
--   [Agile UI](http://agile-ui.readthedocs.io/en/latest/) - documents optional UI components and how to build Web App with them. ([PDF](http://readthedocs.org/projects/agile-ui/downloads/pdf/latest/)) 
+-   [Agile UI](http://agile-ui.readthedocs.io/en/latest/) - documents optional UI components and how to build Web App with them. ([PDF](http://readthedocs.org/projects/agile-ui/downloads/pdf/latest/))
 
 ## When to use Agile Data?
 
@@ -87,36 +86,36 @@ This next example builds a complex "Job Profitability Report" by only relying on
 class JobReport extends Job {
   function init() {
     parent::init();
-    
+
     // Invoice contains Lines that may relevant to this job
     $invoice = new Invoice($this->persistence);
-    
+
     // We need to ignore draft invoices
     $invoice->addCondition('status', '!=', 'draft');
-    
+
     // Each invoice may have multiple lines, which is what we want
     $invoice_lines = $invoice->ref('Lines');
-    
-    // Build relaion between job and invoice line
+
+    // Build relation between job and invoice line
     $this->hasMany('InvoiceLines', $invoice_lines)
       ->addField('invoiced', ['aggregate'=>'sum', 'field'=>'total', 'type'=>'money']);
-    
+
     // Next we need to see how much is reported through timesheets
     $timesheet = new Timesheet($this->persistence);
-    
+
     // Timesheet relates to client. Import client.hourly_rate as expression.
     $timesheet->getRef('client_id')->addField('hourly_rate');
-    
+
     // Calculate timesheet cost expression
     $timesheet->addExpression('cost', '[hours]*[hourly_rate]');
-    
+
     // Build relation between Job and Timesheets
     $this->hasMany('Timesheets', $timesheet)
       ->addField('reported', ['aggregate'=>'sum', 'field'=>'cost', 'type'=>'money']);
 
 	// Finally lets calculate profit
     $this->addExpression('profit', '[invoiced]-[reported]');
-    
+
     // Profit margin could be also useful
     $this->addExpression('profit_margin', 'coalesce([profit] / [invoiced], 0)');
   }
@@ -154,7 +153,7 @@ $chart->setModel($aggregate, ['month', 'profit_margin']);
 $html = $chart->html();
 ```
 
-In both cases you end up executing **just one** SQL query. 
+In both cases you end up executing **just one** SQL query.
 
 ### Large Application and Enterprise use
 
@@ -168,7 +167,7 @@ Agile Data gives you all the tools to do this in a few steps:
 
 -   Update your Model definition by replacing "expression" with a regular field.
 -   Create a "migrator" script which calculates expression using [action](http://agile-data.readthedocs.io/en/develop/quickstart.html#actions).
--   Change model behaviours adding Model Hook (afterSave) to re-calculate "profit" within same ACID transaction.
+-   Change model behaviors adding Model Hook (afterSave) to re-calculate "profit" within same ACID transaction.
 
 This will not break the rest of your applications - UI, RestAPI or Reports will continue to work, but faster.
 
@@ -186,7 +185,7 @@ Agile Data has a usage patters that will automatically restrict access by this c
 
 #### Migrating from one Database to Another and cross-persistence
 
-With Agile Data you can move your data from one persistence to another seamlessly. If you rely on some feature that your new persistence does not support (e.g. Expression) you can replace them a callback calculation, that executes on your App server. 
+With Agile Data you can move your data from one persistence to another seamlessly. If you rely on some feature that your new persistence does not support (e.g. Expression) you can replace them a callback calculation, that executes on your App server.
 
 As usual - the rest of your application is not affected and you can even use multiple types of different persistences and still navigate through references.
 
@@ -200,7 +199,7 @@ Agile Data (and in some cases Agile UI) have been integrated by community with o
 
 -   Laravel: https://github.com/atk4/laravel-ad
 -   Wordpress: https://github.com/ibelar/atk-wordpress
--   More integrations wanted! 
+-   More integrations wanted!
 
 ## Q&A
 
@@ -270,7 +269,7 @@ select sum(`price`*`qty`) from `order_line` `O_L` where `order_id` in (
 
 Agile Data is not only for SQL databases. It can be used anywhere from decoding Form submission data ($_POST) or even work with custom RestAPIs. Zero-configuration implementation for "AuditTrail", "ACL" and "Soft Delete" as well as new features such as "Undo", "Global Scoping" and "Cross-persistence" make your Agile Data code enterprise-ready out of the box.
 
-All of the above does not add complexity to your business logic code. You don't need to create XML, YAML files or annotations. There is no mandatory caching either. 
+All of the above does not add complexity to your business logic code. You don't need to create XML, YAML files or annotations. There is no mandatory caching either.
 
 My next example demonstrates how simple and clean your code looks when you store new Order data:
 
@@ -312,9 +311,9 @@ class Client extends \atk4\data\Model {
   public $table = 'client';
   function init() {
     parent::init();
-    
+
     $this->addFields(['name','address']);
-    
+
     $this->hasMany('Project', new Project());
   }
 }
@@ -355,7 +354,7 @@ Agile Data takes a different approach by introducing "References". It allow you 
 
 ### Model Conditions and DataSets
 
-Conditions (or scopes) are rare and optional feature across ORMs but it is one of the most significant features in Agile Data. It allows you to create objects that represent multiple database records without actually loading them.  
+Conditions (or scopes) are rare and optional feature across ORMs but it is one of the most significant features in Agile Data. It allows you to create objects that represent multiple database records without actually loading them.
 
 Once condition is defined, it will appear in actions and will also restrict you from adding non-compliant records.
 
@@ -371,7 +370,7 @@ How do we create an efficient query to display total budget from all the project
 
 ![GitHub release](docs/images/domain-model-reports.gif)
 
-Did you notice the query has automatically excluded cancelled projects?
+Did you notice the query has automatically excluded canceled projects?
 
 ### Model-level join
 
@@ -393,7 +392,7 @@ The best part about joins is that you can add them to your existing model for sp
 ### Deep Model Traversal
 
 Probably one of the best feature of Agile Data is deep traversal. Remember how
-your ORM tried to implement varous many-to-many relationships? This is no longer
+your ORM tried to implement various many-to-many relationships? This is no longer
 a problem in Agile Data.
 
 Suppose you want to look at all the countries that have 2-letter name. How many
@@ -426,7 +425,7 @@ In fact - we have already stared work on [Agile UI](http://github.com/atk4/ui) p
 
 You now have a domain-level and persistence-level hooks. With a domain-level ones (afterLoad, beforeSave) you get to operate with your field data before or after an operation.
 
-On other hand you can utilise persistence-level hooks ('beforeUpdateQuery', 'beforeSelectQuery') and you can interact with a powerful Query Builder to add a few SQL options (insert ignore or calc_found_rows)
+On other hand you can utilize persistence-level hooks ('beforeUpdateQuery', 'beforeSelectQuery') and you can interact with a powerful Query Builder to add a few SQL options (insert ignore or calc_found_rows)
 if you need.
 
 And guess what - should your model be saved into NoSQL database, the domain-level hooks will be executed, but SQL-specific ones will not.
@@ -440,7 +439,7 @@ Most ORMs hard-code features like soft-delete, audit-log, timestamps. In Agile D
 We are still working on our Extension library but we plan to include:
 
 - [Audit Log](https://www.agiletoolkit.org/data/extensions/audit) - record all operations in a model (as well as previous field values), offers a reliable Undo functionality.
-- [Reporting](https://www.agiletoolkit.org/data/extensions/report) - offers UnionModel 
+- [Reporting](https://www.agiletoolkit.org/data/extensions/report) - offers UnionModel
 - ACL - flexible system to restrict access to certain records, fields or models based on
   permissions of your logged-in user or custom logic.
 - Filestore - allow you to work with files inside your model. Files are actually
@@ -568,7 +567,7 @@ Now you can explore. Try typing:
 Agile Data relies on [DSQL - Query Builder](https://github.com/atk4/dsql) for SQL persistence and multi-record operations though Actions. Various interfaces and PHP patterns are implemented through [Agile Core](https://github.com/atk4/core). For more information use the following links:
 
 -   DSQL Documentation: http://dsql.readthedocs.io
--   Agile Core Documentation: http://agile-core.readthedocs.io 
+-   Agile Core Documentation: http://agile-core.readthedocs.io
 
 ## UI for Agile Data
 

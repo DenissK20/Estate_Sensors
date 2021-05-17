@@ -30,15 +30,29 @@ class Input extends Generic
     public $loading = null;
 
     /**
-     * Set to a text.
+     * Some fields also support $label. For Input the label can be placed to the left or to the right of
+     * the field and you can fit currency symbol "$" inside a label for example.
+     * For Input field label will appear on the left.
+     *
+     * @var string|object
      */
     public $label = null;
 
+    /**
+     * Set label that will appear to the right of the input field.
+     *
+     * @var string|object
+     */
     public $labelRight = null;
 
     public $action = null;
 
     public $actionLeft = null;
+
+    /**
+     * Specify width for semantic UI grid. For "four wide" use 'four'.
+     */
+    public $width = null;
 
     /**
      * Method similar to View::js() however will adjust selector
@@ -56,7 +70,7 @@ class Input extends Generic
      */
     public function getValue()
     {
-        return isset($this->field) ? $this->app->ui_persistence->typecastSaveField($this->field, $this->field->get()) : $this->content ?: '';
+        return isset($this->field) ? $this->app->ui_persistence->typecastSaveField($this->field, $this->field->get()) : (isset($this->content) ? $this->content : '');
     }
 
     /**
@@ -65,19 +79,24 @@ class Input extends Generic
     public function getInput()
     {
         return $this->app->getTag('input', [
-            'name'       => $this->short_name,
-            'type'       => $this->inputType,
-            'placeholder'=> $this->placeholder,
-            'id'         => $this->id.'_input',
-            'value'      => $this->getValue(),
+            'name'        => $this->short_name,
+            'type'        => $this->inputType,
+            'placeholder' => $this->placeholder,
+            'id'          => $this->id.'_input',
+            'value'       => $this->getValue(),
         ]);
         //return '<input name="'.$this->short_name.'" type="'.$this->inputType.'" placeholder="'.$this->placeholder.'" id="'.$this->id.'_input"/>';
     }
 
     /**
      * Used only from renderView().
+     *
+     * @param string|object $label Label class or object
+     * @param string        $spot  Template spot
+     *
+     * @return Label
      */
-    private function prepareRenderLabel($label, $spot)
+    protected function prepareRenderLabel($label, $spot)
     {
         if (!is_object($label)) {
             $label = $this->add(new Label(), $spot)
@@ -93,9 +112,29 @@ class Input extends Generic
         return $label;
     }
 
+    /**
+     * Used only from renderView().
+     *
+     * @param string|object $button Button class or object
+     * @param string        $spot   Template spot
+     *
+     * @return Button
+     */
+    protected function prepareRenderButton($button, $spot)
+    {
+        if (!is_object($button)) {
+            $button = new Button($button);
+        }
+        if (!$button->_initialized) {
+            $this->add($button, $spot);
+            $this->addClass('action');
+        }
+
+        return $button;
+    }
+
     public function renderView()
     {
-
         // TODO: I don't think we need the loading state at all.
         if ($this->loading) {
             if (!$this->icon) {
@@ -109,6 +148,7 @@ class Input extends Generic
             }
         }
 
+        // icons
         if ($this->icon && !is_object($this->icon)) {
             $this->icon = $this->add(new Icon($this->icon), 'AfterInput');
             $this->addClass('icon');
@@ -119,6 +159,7 @@ class Input extends Generic
             $this->addClass('left icon');
         }
 
+        // labels
         if ($this->label) {
             $this->label = $this->prepareRenderLabel($this->label, 'BeforeInput');
         }
@@ -132,26 +173,22 @@ class Input extends Generic
             $this->addClass('labeled');
         }
 
+        // width
+        if ($this->width) {
+            $this->addClass($this->width.' wide');
+        }
+
+        // actions
         if ($this->action) {
-            if (!is_object($this->action)) {
-                $this->action = new Button($this->action);
-            }
-            if (!$this->action->_initialized) {
-                $this->add($this->action, 'AfterInput');
-                $this->addClass('action');
-            }
+            $this->action = $this->prepareRenderButton($this->action, 'AfterInput');
         }
 
         if ($this->actionLeft) {
-            if (!is_object($this->actionLeft)) {
-                $this->actionLeft = new Button($this->actionLeft);
-            }
-            if (!$this->actionLeft->_initialized) {
-                $this->add($this->actionLeft, 'BeforeInput');
-                $this->addClass('left action');
-            }
+            $this->actionLeft = $this->prepareRenderButton($this->actionLeft, 'BeforeInput');
+            $this->addClass('left');
         }
 
+        // set template
         $this->template->setHTML('Input', $this->getInput());
         $this->content = null;
 
@@ -165,6 +202,7 @@ class Input extends Generic
         }
 
         $this->action = $this->add(new Button($defaults), 'AfterInput');
+        $this->addClass('action');
 
         return $this->action;
     }

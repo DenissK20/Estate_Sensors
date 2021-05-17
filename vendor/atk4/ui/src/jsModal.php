@@ -7,34 +7,69 @@ namespace atk4\ui;
  */
 class jsModal extends jsExpression
 {
-    public function __construct($title, $url, $args = [])
+    /**
+     * jsModal constructor.
+     *
+     * @param $title       //When empty, header will be remove in modal.
+     * @param $url
+     * @param array  $args
+     * @param string $mode
+     */
+    public function __construct($title, $url, $args = [], $mode = 'json')
     {
         if ($url instanceof VirtualPage) {
-            $url = $url->getURL('cut');
+            $url = $url->getJSURL('cut');
         }
 
-        $content = '
-  <i class="close icon"></i>
-  <div class="header">
-    '.htmlspecialchars($title).'
-  </div>
-  <div class="image content atk-dialog-content">
-  <div class="ui active inverted dimmer">
-    <div class="ui text loader">Loading</div>
-  </div>
+        parent::__construct('$(this).atkCreateModal([arg])', ['arg' => ['uri' => $url, 'title' => $title, 'mode' => $mode, 'uri_options' => $args]]);
 
+        if (empty($title)) {
+            $this->removeHeader();
+        }
+    }
 
-  </div>
-';
+    /**
+     * Set additionnal option for this jsModal.
+     *
+     * Valuable option are headerCss and label:
+     *  'headerCss' -> customize css class name for the header.
+     *      ex: changing color text for header
+     *      $jsModal->setOption('headerCss', 'ui blue header');
+     *
+     *  'label' -> set the text loader value.
+     *      ex: changing default 'Loading...' for no text
+     *      $jsModal->setOption('label', '');
+     *
+     * You can set option individually or supply an array.
+     *
+     * @param $options
+     * @param null $value
+     *
+     * @return $this
+     */
+    public function setOption($options, $value = null)
+    {
+        if (is_array($options)) {
+            foreach ($options as $key => $value) {
+                $this->args['arg'][$key] = $value;
+            }
+        } else {
+            $this->args['arg'][$options] = $value;
+        }
 
-        parent::__construct('
-        var m=$("<div>").appendTo("body").addClass("ui scrolling modal").html([content]);
-        m.modal({duration: 100, onHide: function() { m.children().remove(); return true; }}).modal("show").find(".content").load($.addParams([url], [arg]), function() { m.modal("refresh"); });
-        m.find(".atk-dialog-content").data("opener", this).on("close", function() {
-            m.modal("hide");
-            m.remove();
-        });
-',
-            ['content'=>$content, 'url'=>$url, 'arg'=>$args]);
+        return $this;
+    }
+
+    /**
+     * Clear header class and title.
+     *
+     * @return $this
+     */
+    public function removeHeader()
+    {
+        $this->args['arg']['headerCss'] = '';
+        $this->args['arg']['title'] = '';
+
+        return $this;
     }
 }

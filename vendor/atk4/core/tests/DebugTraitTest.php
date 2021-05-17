@@ -2,6 +2,7 @@
 
 namespace atk4\core\tests;
 
+use atk4\core\AppScopeTrait;
 use atk4\core\DebugTrait;
 
 /**
@@ -52,6 +53,7 @@ class DebugTraitTest extends \PHPUnit_Framework_TestCase
         $this->expectOutputString('');
 
         $app = new DebugAppMock();
+        $app->logger = $app;
 
         $m = new DebugMock();
         $m->app = $app;
@@ -75,6 +77,7 @@ class DebugTraitTest extends \PHPUnit_Framework_TestCase
         $this->expectOutputString('');
 
         $app = new DebugAppMock();
+        $app->logger = $app;
 
         $m = new DebugMock();
         $m->app = $app;
@@ -125,6 +128,7 @@ class DebugTraitTest extends \PHPUnit_Framework_TestCase
         $app = new DebugAppMock();
 
         $m = new DebugMock();
+        $app->logger = $app;
         $m->app = $app;
 
         $this->triggerDebugTraceChange($m, 'test1'); // difference is 1 line between calls
@@ -149,6 +153,36 @@ class DebugTraitTest extends \PHPUnit_Framework_TestCase
         // No changes in the trace change detected
         $this->assertNull($app->log);
     }
+
+    public function testPSR()
+    {
+        $app = new DebugAppMock();
+
+        $m = new PSRMock();
+        $app->logger = $app;
+        $m->app = $app;
+
+        $m->info('i', ['x']);
+        $this->assertEquals(['info', 'i', ['x']], $app->log);
+
+        $m->warning('t', ['x']);
+        $this->assertEquals(['warning', 't', ['x']], $app->log);
+
+        $m->emergency('em', ['x', 'y']);
+        $this->assertEquals(['emergency', 'em', ['x', 'y']], $app->log);
+
+        $m->alert('al', ['x']);
+        $this->assertEquals(['alert', 'al', ['x']], $app->log);
+
+        $m->critical('cr', ['x']);
+        $this->assertEquals(['critical', 'cr', ['x']], $app->log);
+
+        $m->error('er', ['x']);
+        $this->assertEquals(['error', 'er', ['x']], $app->log);
+
+        $m->notice('nt', ['x']);
+        $this->assertEquals(['notice', 'nt', ['x']], $app->log);
+    }
 }
 
 // @codingStandardsIgnoreStart
@@ -169,6 +203,7 @@ class DebugAppMock implements \Psr\Log\LoggerInterface
     use \Psr\Log\LoggerTrait;
 
     public $log;
+    public $logger;
 
     public function log($level, $message, array $context = [])
     {
@@ -184,6 +219,12 @@ class DebugAppMock2 implements \atk4\core\AppUserNotificationInterface
     {
         $this->message = [$message, $context];
     }
+}
+
+class PSRmock implements \Psr\Log\LoggerInterface
+{
+    use DebugTrait;
+    use AppScopeTrait;
 }
 
 // @codingStandardsIgnoreEnd

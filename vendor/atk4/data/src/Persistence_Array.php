@@ -44,7 +44,7 @@ class Persistence_Array extends Persistence
         }
 
         $defaults = array_merge([
-            '_default_class_join' => 'atk4\data\Join_Array',
+            '_default_seed_join' => 'atk4\data\Join_Array',
         ], $defaults);
 
         $m = parent::add($m, $defaults);
@@ -59,7 +59,9 @@ class Persistence_Array extends Persistence
         // and put all persistence data in there
         if (!$m->table) {
             $m->table = 'data'; // fake table name 'data'
-            $this->data = [$m->table => $this->data];
+            if (!isset($this->data[$m->table]) || count($this->data) != 1) {
+                $this->data = [$m->table => $this->data];
+            }
         }
 
         // if there is no such table in persistence, then create empty one
@@ -77,7 +79,7 @@ class Persistence_Array extends Persistence
      * @param mixed  $id
      * @param string $table
      *
-     * @return array
+     * @return array|false
      */
     public function load(Model $m, $id, $table = null)
     {
@@ -87,6 +89,7 @@ class Persistence_Array extends Persistence
                 'table' => $m->table,
             ]);
         }
+
         if (!isset($this->data[$table ?: $m->table][$id])) {
             throw new Exception([
                 'Record with specified ID was not found',
@@ -105,7 +108,7 @@ class Persistence_Array extends Persistence
      * @param mixed  $id
      * @param string $table
      *
-     * @return array
+     * @return array|false
      */
     public function tryLoad(Model $m, $id, $table = null)
     {
@@ -114,10 +117,38 @@ class Persistence_Array extends Persistence
         }
 
         if (!isset($this->data[$table][$id])) {
-            return false;
+            return false; // no record with such id in table
         }
 
-        return $this->data[$table][$id];
+        return $this->typecastLoadRow($m, $this->data[$table][$id]);
+    }
+
+    /**
+     * Tries to load first available record and return data record.
+     * Doesn't throw exception if model can't be loaded or there are no data records.
+     *
+     * @param Model $m
+     * @param mixed $table
+     *
+     * @return array|false
+     */
+    public function tryLoadAny(Model $m, $table = null)
+    {
+        if (!isset($table)) {
+            $table = $m->table;
+        }
+
+        if (!$this->data[$table]) {
+            return false; // no records at all in table
+        }
+
+        reset($this->data[$table]);
+        $key = key($this->data[$table]);
+
+        $row = $this->load($m, $key, $table);
+        $m->id = $key;
+
+        return $row;
     }
 
     /**
@@ -134,6 +165,8 @@ class Persistence_Array extends Persistence
         if (!isset($table)) {
             $table = $m->table;
         }
+
+        $data = $this->typecastSaveRow($m, $data);
 
         $id = $this->generateNewID($m, $table);
         $data[$m->id_field] = $id;
@@ -157,6 +190,8 @@ class Persistence_Array extends Persistence
         if (!isset($table)) {
             $table = $m->table;
         }
+
+        $data = $this->typecastSaveRow($m, $data);
 
         $this->data[$table][$id] =
             array_merge(

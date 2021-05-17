@@ -1,19 +1,23 @@
-import $ from 'jquery';
+import atkPlugin from 'plugins/atkPlugin';
+import apiService from "../services/ApiService";
 
-export default class reloadView {
-    constructor(element, options) {
-        const $element = $(element);
+export default class reloadView extends atkPlugin {
 
-        $element.spinner({
-            'loaderText': '',
-            'active': true,
-            'inline': true,
-            'centered': true,
-            'replace': true});
+    main() {
 
-        if(options.uri) {
-            $.get(options.uri, options.uri_options, (data) => {
-                $element.replaceWith(data);
+        if(this.settings.uri) {
+            const that  = this;
+            this.$el.api({
+                on: 'now',
+                url: this.settings.uri,
+                data: this.settings.uri_options,
+                method: 'GET',
+                obj: this.$el,
+                onComplete: function(response, content) {
+                    if (that.settings.afterSuccess) {
+                      apiService.onAfterSuccess(that.settings.afterSuccess);
+                    }
+                }
             });
         }
     }
@@ -22,4 +26,5 @@ export default class reloadView {
 reloadView.DEFAULTS = {
     uri: null,
     uri_options: {},
+    afterSuccess: null,
 };

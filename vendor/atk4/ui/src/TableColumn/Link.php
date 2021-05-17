@@ -54,7 +54,6 @@ class Link extends Generic
     {
         if (is_array($page)) {
             $page = ['page' => $page];
-            unset($page[0]);
         } elseif (is_string($page)) {
             $page = ['url' => $page];
         }
@@ -101,7 +100,7 @@ class Link extends Generic
 
         $p = $this->page ?: [];
 
-        foreach ($this->args as $key=>$val) {
+        foreach ($this->args as $key => $val) {
             if (is_numeric($key)) {
                 $key = $val;
             }
@@ -111,6 +110,6 @@ class Link extends Generic
             }
         }
 
-        return ['c_'.$this->short_name => $this->app->url($p)];
+        return ['c_'.$this->short_name => $this->table->url($p)];
     }
 }

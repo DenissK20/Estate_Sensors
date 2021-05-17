@@ -5,7 +5,7 @@
 namespace atk4\data;
 
 /**
- * Reference implements a link between one model and anothre. The basic components for
+ * Reference implements a link between one model and another. The basic components for
  * a reference is ability to generate the destination model, which is returned through
  * getModel() and that's pretty much it.
  *
@@ -17,11 +17,12 @@ class Reference
         init as _init;
     }
     use \atk4\core\TrackableTrait;
+    use \atk4\core\DIContainerTrait;
 
     /**
      * Use this alias for related entity by default. This can help you
      * if you create sub-queries or joins to separate this from main
-     * table. The table_alias will be uniquelly generated.
+     * table. The table_alias will be uniquely generated.
      *
      * @var string
      */
@@ -65,26 +66,11 @@ class Reference
     /**
      * Default constructor. Will copy argument into properties.
      *
-     * @param array $defaults
+     * @param string $link a short_name component
      */
-    public function __construct($defaults = [])
+    public function __construct($link)
     {
-        if (isset($defaults[0])) {
-            $this->link = $defaults[0];
-            unset($defaults[0]);
-        }
-
-        foreach ($defaults as $key => $val) {
-            if (is_array($val)) {
-                $this->$key = array_merge(isset($this->$key) && is_array($this->$key) ? $this->$key : [], $val);
-            } else {
-                $this->$key = $val;
-            }
-        }
-
-        if (!$this->model) {
-            $this->model = $this->link;
-        }
+        $this->link = $link;
     }
 
     /**
@@ -119,7 +105,7 @@ class Reference
         if (!isset($defaults['table_alias'])) {
             if (!$this->table_alias) {
                 $this->table_alias = $this->link;
-                $this->table_alias = preg_replace('/_id/', '', $this->table_alias);
+                $this->table_alias = preg_replace('/_'.($this->owner->id_field ?: 'id').'/', '', $this->table_alias);
                 $this->table_alias = preg_replace('/([a-zA-Z])[a-zA-Z]*[^a-zA-Z]*/', '\1', $this->table_alias);
                 if (isset($this->owner->table_alias)) {
                     $this->table_alias = $this->owner->table_alias.'_'.$this->table_alias;
@@ -191,42 +177,6 @@ class Reference
     public function refModel($defaults = [])
     {
         return $this->getModel($defaults);
-    }
-
-    /**
-     * If you have set $their_field property correctly, then calling this method
-     * will traverse into a related model and fetch the type of their field. This
-     * method will be extra careful to avoid any loops.
-     *
-     * @param string $their_field
-     *
-     * @return string
-     */
-    public function guessFieldType($their_field = null)
-    {
-        return;
-        if (!is_string($their_field)) {
-            return;
-        }
-
-        // We shouldn't traverse into ourselves recursively
-        $cl = get_class($this->owner).'::'.$this->short_name;
-
-        // see where we shouldn't traverse
-        if (isset($this->owner->_do_not_traverse_into)) {
-            $dnti = $this->owner->_do_not_traverse_into;
-
-            if (isset($dnti[$cl])) {
-                return;
-            }
-        }
-        $dnti[$cl] = true;
-
-        $m = $this->getModel(['_do_not_traverse_into' => $dnti]);
-
-        $f = $m->hasElement($their_field ?: $this->their_field);
-
-        return $f ? $f->type : null;
     }
 
     // {{{ Debug Methods

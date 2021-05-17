@@ -3,12 +3,15 @@
 namespace atk4\data\tests;
 
 use atk4\data\Model;
+use atk4\data\Persistence;
 use atk4\data\Persistence_Array;
+use atk4\data\tests\Model\Female as Female;
+use atk4\data\tests\Model\Male as Male;
 
 /**
  * @coversDefaultClass \atk4\data\Model
  */
-class PersistentArrayTest extends TestCase
+class PersistentArrayTest extends \atk4\core\PHPUnit_AgileTestCase
 {
     /**
      * Test constructor.
@@ -29,6 +32,12 @@ class PersistentArrayTest extends TestCase
 
         $m->load(1);
         $this->assertEquals('John', $m['name']);
+
+        $m->unload();
+        $this->assertFalse($m->loaded());
+
+        $m->tryLoadAny();
+        $this->assertTrue($m->loaded());
 
         $m->load(2);
         $this->assertEquals('Jones', $m['surname']);
@@ -54,9 +63,9 @@ class PersistentArrayTest extends TestCase
 
         $p = new Persistence_Array($a);
 
-        $m = new Model_Male($p);
+        $m = new Male($p);
         $m->load(1);
-        $m->saveAs(new Model_Female());
+        $m->saveAs(new Female());
         $m->delete();
 
         $this->assertEquals([
@@ -77,7 +86,7 @@ class PersistentArrayTest extends TestCase
         ];
 
         $p = new Persistence_Array($a);
-        $m = new Model_Male($p, 'user');
+        $m = new Male($p, 'user');
 
         $m->load(1);
         $this->assertTrue($m->loaded());
@@ -85,7 +94,7 @@ class PersistentArrayTest extends TestCase
         $m->saveAndUnload();
         $this->assertFalse($m->loaded());
 
-        $m = new Model_Female($p, 'user');
+        $m = new Female($p, 'user');
         $m->load(1);
         $this->assertTrue($m->loaded());
 
@@ -217,5 +226,68 @@ class PersistentArrayTest extends TestCase
 
         $m->load(2);
         $this->assertEquals('Smith', $m['surname']);
+    }
+
+    /**
+     * Non SQL persistences don't support action() method.
+     *
+     * @expectedException Exception
+     */
+    public function testActionNotSupportedException()
+    {
+        $a = [
+            1 => ['name' => 'John'],
+            2 => ['name' => 'Sarah'],
+        ];
+
+        $p = new Persistence_Array($a);
+        $m = new Model($p);
+        $m->addField('name');
+
+        $m->action('count');
+    }
+
+    /**
+     * Some persistences don't support tryLoad() method.
+     *
+     * @expectedException Exception
+     */
+    public function testTryLoadNotSupportedException()
+    {
+        $m = new Model(new Persistence());
+        $m->tryLoad(1);
+    }
+
+    /**
+     * Some persistences don't support loadAny() method.
+     *
+     * @expectedException Exception
+     */
+    public function testLoadAnyNotSupportedException()
+    {
+        $m = new Model(new Persistence());
+        $m->loadAny();
+    }
+
+    /**
+     * Some persistences don't support tryLoadAny() method.
+     *
+     * @expectedException Exception
+     */
+    public function testTryLoadAnyNotSupportedException()
+    {
+        $m = new Model(new Persistence());
+        $m->tryLoadAny();
+    }
+
+    /**
+     * Some persistences don't support export() method.
+     *
+     * @expectedException Exception
+     */
+    public function testExportNotSupportedException()
+    {
+        $m = new Model(new Persistence());
+        $m->export();
     }
 }

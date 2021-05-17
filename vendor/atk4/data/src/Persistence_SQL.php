@@ -21,35 +21,35 @@ class Persistence_SQL extends Persistence
      *
      * @var string
      */
-    public $_default_class_addField = 'atk4\data\Field_SQL';
+    public $_default_seed_addField = ['\atk4\data\Field_SQL'];
 
     /**
      * Default class when adding hasOne field.
      *
      * @var string
      */
-    public $_default_class_hasOne = 'atk4\data\Reference_SQL_One';
+    public $_default_seed_hasOne = ['\atk4\data\Reference_SQL_One'];
 
     /**
      * Default class when adding hasMany field.
      *
      * @var string
      */
-    public $_default_class_hasMany = null; //'atk4\data\Reference_Many';
+    public $_default_seed_hasMany = null; //'atk4\data\Reference_Many';
 
     /**
      * Default class when adding Expression field.
      *
      * @var string
      */
-    public $_default_class_addExpression = 'atk4\data\Field_SQL_Expression';
+    public $_default_seed_addExpression = ['\atk4\data\Field_SQL_Expression'];
 
     /**
      * Default class when adding join.
      *
      * @var string
      */
-    public $_default_class_join = 'atk4\data\Join_SQL';
+    public $_default_seed_join = ['\atk4\data\Join_SQL'];
 
     /**
      * Constructor.
@@ -120,11 +120,11 @@ class Persistence_SQL extends Persistence
         // Use our own classes for fields, references and expressions unless
         // $defaults specify them otherwise.
         $defaults = array_merge([
-            '_default_class_addField'      => $this->_default_class_addField,
-            '_default_class_hasOne'        => $this->_default_class_hasOne,
-            '_default_class_hasMany'       => $this->_default_class_hasMany,
-            '_default_class_addExpression' => $this->_default_class_addExpression,
-            '_default_class_join'          => $this->_default_class_join,
+            '_default_seed_addField'      => $this->_default_seed_addField,
+            '_default_seed_hasOne'        => $this->_default_seed_hasOne,
+            '_default_seed_hasMany'       => $this->_default_seed_hasMany,
+            '_default_seed_addExpression' => $this->_default_seed_addExpression,
+            '_default_seed_join'          => $this->_default_seed_join,
         ], $defaults);
 
         $m = parent::add($m, $defaults);
@@ -138,11 +138,16 @@ class Persistence_SQL extends Persistence
 
         // When we work without table, we can't have any IDs
         if ($m->table === false) {
-            $m->getElement('id')->destroy();
-            $m->addExpression('id', '1');
+            $m->getElement($m->id_field)->destroy();
+            $m->addExpression($m->id_field, '1');
         } else {
             // SQL databases use ID of int by default
-            //$m->getElement('id')->type = 'integer';
+            //$m->getElement($m->id_field)->type = 'integer';
+        }
+
+        // Sequence support
+        if ($m->sequence && $id_field = $m->hasElement($m->id_field)) {
+            $id_field->default = $this->dsql()->mode('seq_nextval')->sequence($m->sequence);
         }
 
         return $m;
@@ -170,7 +175,7 @@ class Persistence_SQL extends Persistence
     public function expr(Model $m, $expr, $args = [])
     {
         preg_replace_callback(
-            '/\[[a-z0-9_]*\]|{[a-z0-9_]*}/',
+            '/\[[a-z0-9_]*\]|{[a-z0-9_]*}/i',
             function ($matches) use (&$args, $m) {
                 $identifier = substr($matches[0], 1, -1);
                 if ($identifier && !isset($args[$identifier])) {
@@ -194,7 +199,7 @@ class Persistence_SQL extends Persistence
      */
     public function initQuery($m)
     {
-        $d = $m->persistence_data['dsql'] = $this->connection->dsql();
+        $d = $m->persistence_data['dsql'] = $this->dsql();
 
         if ($m->table) {
             if (isset($m->table_alias)) {
@@ -215,10 +220,12 @@ class Persistence_SQL extends Persistence
      */
     public function initField($q, $field)
     {
-        if ($field->useAlias()) {
+        if ($field instanceof Field_SQL && $field->useAlias()) {
             $q->field($field, $field->short_name);
-        } else {
+        } elseif ($field instanceof Field_SQL) {
             $q->field($field);
+        } else {
+            $q->field($field->short_name);
         }
     }
 
@@ -227,19 +234,23 @@ class Persistence_SQL extends Persistence
      *
      * @param Model            $m
      * @param \atk4\dsql\Query $q
-     * @param array|null       $fields
+     * @param array|null|false $fields
      */
     public function initQueryFields($m, $q, $fields = null)
     {
-        if ($fields) {
+        // do nothing on purpose
+        if ($fields === false) {
+            return;
+        }
+
+        // init fields
+        if (is_array($fields)) {
 
             // Set of fields is strictly defined for purposes of export,
             // so we will ignore even system fields.
             foreach ($fields as $field) {
                 $this->initField($q, $m->getElement($field));
             }
-        } elseif ($fields === false) {
-            // do nothing on purpose
         } elseif ($m->only_fields) {
             $added_fields = [];
 
@@ -255,16 +266,18 @@ class Persistence_SQL extends Persistence
 
             // now add system fields, if they were not added
             foreach ($m->elements as $field => $f_object) {
-                if ($f_object instanceof Field && $f_object->never_persist) {
-                    continue;
-                }
-                if ($f_object instanceof Field_SQL && $f_object->system && !isset($added_fields[$field])) {
-                    $this->initField($q, $f_object);
+                if ($f_object instanceof Field) {
+                    if ($f_object->never_persist) {
+                        continue;
+                    }
+                    if ($f_object->system && !isset($added_fields[$field])) {
+                        $this->initField($q, $f_object);
+                    }
                 }
             }
         } else {
             foreach ($m->elements as $field => $f_object) {
-                if ($f_object instanceof Field_SQL) {
+                if ($f_object instanceof Field) {
                     if ($f_object->never_persist) {
                         continue;
                     }
@@ -427,6 +440,11 @@ class Persistence_SQL extends Persistence
      */
     public function _typecastLoadField(Field $f, $value)
     {
+        // LOB fields return resource stream
+        if (is_resource($value)) {
+            $value = stream_get_contents($value);
+        }
+
         // work only on copied value not real one !!!
         $v = is_object($value) ? clone $value : $value;
 
@@ -562,6 +580,8 @@ class Persistence_SQL extends Persistence
                 $m->hook('initSelectQuery', [$q, $type]);
                 if (isset($args['alias'])) {
                     $q->reset('field')->field($field, $args['alias']);
+                } elseif ($field instanceof Field_SQL_Expression) {
+                    $q->reset('field')->field($field, $field->short_name);
                 } else {
                     $q->reset('field')->field($field);
                 }
@@ -592,6 +612,8 @@ class Persistence_SQL extends Persistence
 
                 if (isset($args['alias'])) {
                     $q->reset('field')->field($q->expr($expr, [$field]), $args['alias']);
+                } elseif ($field instanceof Field_SQL_Expression) {
+                    $q->reset('field')->field($q->expr($expr, [$field]), $fx.'_'.$field->short_name);
                 } else {
                     $q->reset('field')->field($q->expr($expr, [$field]));
                 }
@@ -715,12 +737,12 @@ class Persistence_SQL extends Persistence
 
         if ($m->id_field) {
 
-            // If id_field is not set, model will be rea-donly
+            // If id_field is not set, model will be read-only
             if (isset($data[$m->id_field])) {
                 $m->id = $data[$m->id_field];
             } else {
                 throw new Exception([
-                    'Model uses "id_field" but it wasn\'t available in the database',
+                    'Model uses "id_field" but it was not available in the database',
                     'model'       => $m,
                     'id_field'    => $m->id_field,
                     'data'        => $data,
@@ -764,6 +786,12 @@ class Persistence_SQL extends Persistence
     public function insert(Model $m, $data)
     {
         $insert = $m->action('insert');
+
+        // don't set id field at all if it's NULL
+        if ($m->id_field && array_key_exists($m->id_field, $data) && $data[$m->id_field] === null) {
+            unset($data[$m->id_field]);
+        }
+
         $insert->set($this->typecastSaveRow($m, $data));
 
         $st = null;
@@ -782,7 +810,7 @@ class Persistence_SQL extends Persistence
 
         $m->hook('afterInsertQuery', [$insert, $st]);
 
-        return $insert->connection->lastInsertID();
+        return $m->lastInsertID();
     }
 
     /**

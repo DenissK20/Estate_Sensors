@@ -3,12 +3,11 @@
 namespace atk4\data\tests;
 
 use atk4\data\Model;
-use atk4\data\Persistence_SQL;
 
 /**
  * @coversDefaultClass \atk4\data\Model
  */
-class ConditionSQLTest extends SQLTestCase
+class ConditionSQLTest extends \atk4\schema\PHPUnit_SchemaTestCase
 {
     public function testBasic()
     {
@@ -19,8 +18,7 @@ class ConditionSQLTest extends SQLTestCase
             ], ];
         $this->setDB($a);
 
-        $db = new Persistence_SQL($this->db->connection);
-        $m = new Model($db, 'user');
+        $m = new Model($this->db, 'user');
         $m->addFields(['name', 'gender']);
 
         $m->tryLoad(1);
@@ -35,10 +33,12 @@ class ConditionSQLTest extends SQLTestCase
         $mm->tryLoad(2);
         $this->assertEquals(null, $mm['name']);
 
-        $this->assertEquals(
-            'select `id`,`name`,`gender` from `user` where `gender` = :a',
-            $mm->action('select')->render()
-        );
+        if ($this->driver == 'sqlite') {
+            $this->assertEquals(
+                'select "id","name","gender" from "user" where "gender" = :a',
+                $mm->action('select')->render()
+            );
+        }
 
         $mm = clone $m;
         $mm->withID(2); // = addCondition(id, 2)
@@ -57,8 +57,7 @@ class ConditionSQLTest extends SQLTestCase
             ], ];
         $this->setDB($a);
 
-        $db = new Persistence_SQL($this->db->connection);
-        $m = new Model($db, 'user');
+        $m = new Model($this->db, 'user');
         $m->addFields(['name', 'gender']);
 
         $m->tryLoad(1);
@@ -104,8 +103,7 @@ class ConditionSQLTest extends SQLTestCase
             ], ];
         $this->setDB($a);
 
-        $db = new Persistence_SQL($this->db->connection);
-        $m = new Model($db, 'user');
+        $m = new Model($this->db, 'user');
         $m->addFields(['name', 'gender']);
 
         $m->tryLoad(1);
@@ -137,8 +135,7 @@ class ConditionSQLTest extends SQLTestCase
             ], ];
         $this->setDB($a);
 
-        $db = new Persistence_SQL($this->db->connection);
-        $m = new Model($db, 'user');
+        $m = new Model($this->db, 'user');
         $m->addFields(['name', 'gender', 'surname']);
 
         $m->tryLoad(1);
@@ -177,6 +174,10 @@ class ConditionSQLTest extends SQLTestCase
 
     public function testExpressionJoin()
     {
+        if ($this->driver == 'pgsql') {
+            $this->markTestIncomplete('This test is not supported on PostgreSQL');
+        }
+
         $a = [
             'user' => [
                 1 => ['id' => 1, 'name' => 'John', 'surname' => 'Smith', 'gender' => 'M', 'contact_id' => 1],
@@ -188,8 +189,7 @@ class ConditionSQLTest extends SQLTestCase
             ], ];
         $this->setDB($a);
 
-        $db = new Persistence_SQL($this->db->connection);
-        $m = new Model($db, 'user');
+        $m = new Model($this->db, 'user');
         $m->addFields(['name', 'gender', 'surname']);
 
         $m->join('contact')->addField('contact_phone');
@@ -225,5 +225,41 @@ class ConditionSQLTest extends SQLTestCase
         $mm->tryLoad(3);
         $this->assertEquals('Peter', $mm['name']);
         $this->assertEquals('+123 smiths', $mm['contact_phone']);
+    }
+
+    public function testDateCondition()
+    {
+        $a = [
+            'user' => [
+                1 => ['id' => 1, 'name' => 'John', 'date' => '1981-12-08'],
+                2 => ['id' => 2, 'name' => 'Sue', 'date' => '1982-12-08'],
+            ], ];
+        $this->setDB($a);
+
+        $m = new Model($this->db, 'user');
+        $m->addField('name');
+        $m->addField('date', ['type'=>'date']);
+
+        $m->tryLoadBy('date', new \DateTime('08-12-1982'));
+        $this->assertEquals('Sue', $m['name']);
+    }
+
+    /**
+     * @expectedException        \Exception
+     */
+    public function testDateConditionFailure()
+    {
+        $a = [
+            'user' => [
+                1 => ['id' => 1, 'name' => 'John', 'date' => '1981-12-08'],
+                2 => ['id' => 2, 'name' => 'Sue', 'date' => '1982-12-08'],
+            ], ];
+        $this->setDB($a);
+
+        $m = new Model($this->db, 'user');
+        $m->addField('name');
+        $m->addField('date', ['type'=>'date']);
+
+        $m->tryLoadBy('name', new \DateTime('08-12-1982'));
     }
 }
